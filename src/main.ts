@@ -3,11 +3,11 @@ import * as Matter from 'matter-js';
 // Import images as modules
 const { Engine, World, Bodies, Body, Runner, Events, Constraint, Composite } = Matter;
 
-
 let gameState: 'menu' | 'playing' | 'levelComplete' | 'gameOver' = 'menu';
 let currentLevel = 1;
 let globalScore = 0;
 let isMuted = false;
+let isLandscapeMode = false;
 
 // Audio elements - UPDATED FOR BETTER MANAGEMENT
 let bgMusic: HTMLAudioElement | null = null;
@@ -33,6 +33,7 @@ const levelCompleteScreen = document.getElementById('levelCompleteScreen') as HT
 const gameOverScreen = document.getElementById('gameOverScreen') as HTMLDivElement;
 const gameCompletionScreen = document.getElementById('gameCompletionScreen') as HTMLDivElement;
 const muteBtn = document.getElementById('muteBtn') as HTMLButtonElement;
+const rotateMessage = document.getElementById('rotateMessage') as HTMLDivElement;
 
 const scoreEl = document.getElementById('score') as HTMLDivElement;
 const levelEl = document.getElementById('level') as HTMLDivElement;
@@ -62,6 +63,41 @@ let friend2Image: HTMLImageElement;
 let friend3Image: HTMLImageElement;
 let friend4Image: HTMLImageElement;
 let imagesLoaded = false;
+
+// Orientation handling
+function checkOrientation() {
+  const isMobile = window.innerWidth <= 768;
+  const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+  
+  if (isMobile) {
+    if (isLandscape) {
+      // We're on mobile and in landscape - enable game
+      document.body.classList.add('landscape-mode');
+      isLandscapeMode = true;
+      
+      // If we were in the menu and just rotated to landscape, show the menu
+      if (gameState === 'menu') {
+        showMenu();
+      }
+      
+      // Resize and rebuild if playing
+      if (gameState === 'playing') {
+        setTimeout(() => {
+          resizeCanvas();
+          buildWorld();
+        }, 100);
+      }
+    } else {
+      // We're on mobile and in portrait - show rotate message
+      document.body.classList.remove('landscape-mode');
+      isLandscapeMode = false;
+    }
+  } else {
+    // We're on desktop - always enable game
+    document.body.classList.add('landscape-mode');
+    isLandscapeMode = true;
+  }
+}
 
 // Initialize all audio elements
 function initializeAudio() {
@@ -242,15 +278,27 @@ function updateMuteState() {
 
 function resizeCanvas() {
   const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const w = Math.max(320, window.innerWidth);
-  const h = Math.max(480, window.innerHeight);
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  canvas.width = Math.floor(w * dpr);
-  canvas.height = Math.floor(h * dpr);
+  
+  if (isLandscapeMode && window.innerWidth <= 768) {
+    // Mobile landscape - use full viewport
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+  } else {
+    // Desktop or tablet
+    const w = Math.max(320, window.innerWidth);
+    const h = Math.max(480, window.innerHeight);
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
+    canvas.width = Math.floor(w * dpr);
+    canvas.height = Math.floor(h * dpr);
+  }
+  
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
-resizeCanvas();
 
 let WORLD_W = window.innerWidth;
 let WORLD_H = window.innerHeight;
@@ -1111,8 +1159,15 @@ let rightWall: Matter.Body;
 let slingAnchor = { x: 170, y: 0 };
 
 function buildWorld() {
-  WORLD_W = window.innerWidth;
-  WORLD_H = window.innerHeight;
+  // Update world dimensions based on orientation
+  if (isLandscapeMode && window.innerWidth <= 768) {
+    WORLD_W = window.innerWidth;
+    WORLD_H = window.innerHeight;
+  } else {
+    WORLD_W = Math.max(320, window.innerWidth);
+    WORLD_H = Math.max(480, window.innerHeight);
+  }
+  
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
   // KEEP BIRD RADIUS AT 25 (good size)
   BIRD_RADIUS = Math.max(20, Math.min(28, Math.floor(Math.min(WORLD_W, WORLD_H) * 0.03)));
@@ -1759,6 +1814,12 @@ function showMenu() {
 }
 
 function showGame() {
+  // Check if we're in landscape mode on mobile
+  if (window.innerWidth <= 768 && !isLandscapeMode) {
+    alert('Please rotate your device to landscape mode to play the game.');
+    return;
+  }
+  
   gameState = 'playing';
   
   // Reset victory/defeat flag when starting a new game/level
@@ -1887,7 +1948,20 @@ function initializeEventListeners() {
 
 window.addEventListener('resize', () => {
   resizeCanvas();
+  checkOrientation();
   if (gameState === 'playing') buildWorld();
+});
+
+window.addEventListener('orientationchange', () => {
+  setTimeout(() => {
+    checkOrientation();
+    if (gameState === 'playing') {
+      setTimeout(() => {
+        resizeCanvas();
+        buildWorld();
+      }, 100);
+    }
+  }, 100);
 });
 
 // LAG FIX: Performance monitoring and cleanup
@@ -1907,49 +1981,11 @@ loadImages().then((success) => {
   console.error('Initial image loading error:', error);
 });
 
-// Add this function to handle orientation changes
-function handleOrientationChange() {
-  const rotateMessage = document.getElementById('rotateMessage') as HTMLDivElement;
-  
-  if (window.innerWidth <= 768) {
-    if (window.matchMedia("(orientation: portrait)").matches) {
-      // Portrait mode on mobile - show rotate message
-      if (rotateMessage) rotateMessage.style.display = 'flex';
-      if (gameState === 'playing') {
-        // If game is playing and user rotates to portrait, pause the game
-        canvas.style.display = 'none';
-        gameUI.style.display = 'none';
-        muteBtn.style.display = 'none';
-      }
-    } else {
-      // Landscape mode on mobile - hide rotate message and show game
-      if (rotateMessage) rotateMessage.style.display = 'none';
-      if (gameState === 'playing') {
-        canvas.style.display = 'block';
-        gameUI.style.display = 'block';
-        muteBtn.style.display = 'block';
-        // Rebuild world to adjust to new dimensions
-        setTimeout(() => {
-          resizeCanvas();
-          buildWorld();
-        }, 100);
-      }
-    }
-  } else {
-    // Desktop - always hide rotate message
-    if (rotateMessage) rotateMessage.style.display = 'none';
-  }
-}
-
-// Add these event listeners at the end of your main.ts file, after initializeEventListeners():
-window.addEventListener('orientationchange', handleOrientationChange);
-window.addEventListener('resize', handleOrientationChange);
-
-// Initial check
-handleOrientationChange();
-
 // Initialize audio system
 initializeAudio();
+
+// Initial orientation check
+checkOrientation();
 
 initializeEventListeners();
 showMenu();
