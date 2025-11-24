@@ -2,26 +2,117 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  background: #000;
 }
 
 body {
   font-family: 'Arial', sans-serif;
   overflow: hidden;
   background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+  touch-action: none;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+/* Mobile Landscape Detection and Rotate Message */
+.rotate-message {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  color: white;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 10000;
+  text-align: center;
+  padding: 2rem;
+}
+
+.rotate-icon {
+  font-size: 4rem;
+  margin-bottom: 2rem;
+  animation: rotate 2s infinite ease-in-out;
+}
+
+.rotate-text {
+  font-size: 1.5rem;
+  font-weight: bold;
+  line-height: 1.4;
+}
+
+@keyframes rotate {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(90deg); }
+}
+
+/* Show rotate message on mobile portrait */
+@media screen and (max-width: 768px) and (orientation: portrait) {
+  .rotate-message {
+    display: flex;
+  }
+  
+  #gameCanvas,
+  #gameUI,
+  #muteBtn,
+  .screen {
+    display: none !important;
+  }
+}
+
+/* Force landscape layout on mobile */
+@media screen and (max-width: 768px) and (orientation: landscape) {
+  .rotate-message {
+    display: none !important;
+  }
+  
+  body {
+    min-height: 100vw;
+    max-height: 100vh;
+  }
+  
+  #gameCanvas {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw;
+    max-height: 100vh;
+  }
 }
 
 #gameCanvas {
   display: block;
   cursor: crosshair;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
 }
 
 .screen {
-  position: absolute;
-  inset: 0;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 100;
+  padding: 1rem;
 }
 
 #menuScreen {
@@ -33,24 +124,28 @@ body {
 }
 
 #menuScreen h1 {
-  font-size: 6rem;
+  font-size: clamp(3rem, 8vw, 6rem);
   font-weight: bold;
   color: white;
   text-shadow: 4px 4px 0px rgba(0,0,0,0.3), 8px 8px 0px rgba(0,0,0,0.2);
   animation: bounce 2s infinite;
+  line-height: 1.1;
+  word-wrap: break-word;
 }
 
 #menuScreen p {
-  font-size: 2rem;
+  font-size: clamp(1rem, 4vw, 2rem);
   color: white;
   font-weight: 600;
   text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  line-height: 1.3;
 }
 
 #menuScreen .info {
-  font-size: 1.2rem;
+  font-size: clamp(0.8rem, 3vw, 1.2rem);
   color: rgba(255,255,255,0.9);
   margin-top: 1rem;
+  line-height: 1.4;
 }
 
 @keyframes bounce {
@@ -66,10 +161,10 @@ body {
 .popup-content {
   background: white;
   border-radius: 2rem;
-  padding: 2.5rem;
+  padding: clamp(1.5rem, 4vw, 2.5rem);
   box-shadow: 0 20px 60px rgba(0,0,0,0.5);
   text-align: center;
-  max-width: 500px;
+  max-width: min(500px, 90vw);
   width: 90%;
   margin: 1rem;
   animation: popIn 0.3s ease-out;
@@ -88,7 +183,7 @@ body {
 }
 
 .popup-content h2 {
-  font-size: 2.5rem;
+  font-size: clamp(1.5rem, 5vw, 2.5rem);
   margin-bottom: 1rem;
   word-wrap: break-word;
   line-height: 1.2;
@@ -97,7 +192,7 @@ body {
 
 .popup-content .success {
   color: #00cc00;
-  font-size: 2.2rem;
+  font-size: clamp(1.3rem, 4.5vw, 2.2rem);
 }
 
 .popup-content .failure {
@@ -105,13 +200,14 @@ body {
 }
 
 .popup-content p {
-  font-size: 1.5rem;
+  font-size: clamp(1rem, 3.5vw, 1.5rem);
   color: #333;
   margin: 0.5rem 0;
+  line-height: 1.3;
 }
 
 #completeLevel {
-  font-size: 1.8rem !important;
+  font-size: clamp(1.2rem, 4vw, 1.8rem) !important;
   font-weight: bold;
   line-height: 1.3;
   margin: 0.5rem 0;
@@ -123,17 +219,20 @@ body {
   gap: 1rem;
   justify-content: center;
   margin-top: 2rem;
+  flex-wrap: wrap;
 }
 
 button {
-  font-size: 1.5rem;
+  font-size: clamp(1rem, 3vw, 1.5rem);
   font-weight: bold;
-  padding: 1rem 2.5rem;
+  padding: clamp(0.8rem, 2vw, 1rem) clamp(1.5rem, 4vw, 2.5rem);
   border: none;
   border-radius: 50px;
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  min-height: 44px; /* Better touch targets */
+  touch-action: manipulation;
 }
 
 button:hover {
@@ -148,11 +247,12 @@ button:active {
 #playBtn {
   background: white;
   color: #333;
-  font-size: 2rem;
-  padding: 1.5rem 4rem;
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  padding: clamp(1rem, 3vw, 1.5rem) clamp(2rem, 6vw, 4rem);
   display: flex;
   align-items: center;
   gap: 1rem;
+  min-height: 60px;
 }
 
 #playBtn:hover {
@@ -187,98 +287,107 @@ button:active {
 }
 
 #gameUI {
-  position: absolute;
+  position: fixed;
   top: 1rem;
   right: 1rem;
-  background: rgba(255,255,255,0.9);
-  padding: 1rem 1.5rem;
+  background: rgba(255,255,255,0.95);
+  padding: clamp(0.8rem, 2vw, 1rem) clamp(1rem, 2vw, 1.5rem);
   border-radius: 1rem;
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   z-index: 50;
   display: none;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255,255,255,0.5);
 }
 
 #gameUI div {
-  font-size: 1.2rem;
+  font-size: clamp(1rem, 2.5vw, 1.2rem);
   font-weight: bold;
   color: #333;
   margin: 0.25rem 0;
+  white-space: nowrap;
 }
 
 #muteBtn {
-  position: absolute;
+  position: fixed;
   top: 1rem;
   left: 1rem;
-  width: 60px;
-  height: 60px;
+  width: clamp(50px, 10vw, 60px);
+  height: clamp(50px, 10vw, 60px);
   border-radius: 50%;
-  background: rgba(255,255,255,0.9);
-  font-size: 1.8rem;
+  background: rgba(255,255,255,0.95);
+  font-size: clamp(1.5rem, 3vw, 1.8rem);
   display: none;
   align-items: center;
   justify-content: center;
   z-index: 50;
   padding: 0;
+  border: 2px solid rgba(255,255,255,0.5);
+  backdrop-filter: blur(10px);
+  min-height: 44px;
 }
 
 #muteBtn:hover {
   background: white;
 }
 
-@media (max-width: 768px) {
+/* Enhanced mobile responsiveness */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+  #menuScreen {
+    gap: 1rem;
+    padding: 1rem;
+  }
+  
   #menuScreen h1 {
-    font-size: 3rem;
+    font-size: clamp(2rem, 6vh, 3rem);
   }
-
-  #menuScreen p {
-    font-size: 1.2rem;
-  }
-
-  #playBtn {
-    font-size: 1.5rem;
-    padding: 1rem 2.5rem;
-  }
-
+  
   .popup-content {
-    padding: 2rem;
-  }
-
-  .popup-content h2 {
-    font-size: 1.8rem;
+    padding: 1rem;
+    margin: 0.5rem;
   }
   
-  .popup-content .success {
-    font-size: 1.6rem;
-  }
-
-  .popup-content p {
-    font-size: 1.2rem;
+  .button-group {
+    margin-top: 1rem;
+    gap: 0.5rem;
   }
   
-  #completeLevel {
-    font-size: 1.4rem !important;
-  }
-
   button {
-    font-size: 1.2rem;
-    padding: 0.8rem 1.5rem;
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
   }
 }
 
-@media (max-width: 480px) {
-  .popup-content h2 {
-    font-size: 1.5rem;
+/* Very small screens */
+@media screen and (max-width: 320px) and (orientation: landscape) {
+  #gameUI {
+    top: 0.5rem;
+    right: 0.5rem;
+    padding: 0.5rem;
   }
   
-  .popup-content .success {
-    font-size: 1.3rem;
+  #muteBtn {
+    top: 0.5rem;
+    left: 0.5rem;
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Prevent zoom on double-tap */
+@media screen and (max-width: 768px) {
+  body {
+    touch-action: pan-x pan-y;
   }
   
-  #completeLevel {
-    font-size: 1.2rem !important;
+  button, #muteBtn {
+    touch-action: manipulation;
   }
-  
-  .popup-content {
-    padding: 1.5rem;
+}
+
+/* High DPI screens */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  #gameUI, #muteBtn, .popup-content {
+    border-width: 0.5px;
   }
 }

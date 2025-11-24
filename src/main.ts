@@ -1891,6 +1891,31 @@ loadImages().then((success) => {
   console.error('Initial image loading error:', error);
 });
 
+// Add this after your existing resizeCanvas function
+function handleMobileResize() {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  if (isMobile) {
+    // Force landscape dimensions on mobile
+    WORLD_W = Math.max(window.innerWidth, window.innerHeight);
+    WORLD_H = Math.min(window.innerWidth, window.innerHeight);
+    
+    canvas.style.width = '100vw';
+    canvas.style.height = '100vh';
+  } else {
+    resizeCanvas();
+  }
+}
+
+// Update your existing resize event listener
+window.addEventListener('resize', () => {
+  handleMobileResize();
+  if (gameState === 'playing') buildWorld();
+});
+
+// Call this on initial load
+handleMobileResize();
+
 // Initialize audio system
 initializeAudio();
 
