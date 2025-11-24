@@ -8,15 +8,16 @@ let currentLevel = 1;
 let globalScore = 0;
 let isMuted = false;
 let isLandscapeMode = false;
+let landscapeCheckTimer: number | null = null;
 
-// Audio elements - UPDATED FOR BETTER MANAGEMENT
+// Audio elements
 let bgMusic: HTMLAudioElement | null = null;
 let currentBgMusic: string | null = null;
 let victorySound: HTMLAudioElement | null = null;
 let defeatSound: HTMLAudioElement | null = null;
 let isPlayingVictoryOrDefeat = false;
 
-// Audio file paths - UPDATED FOR PARCEL
+// Audio file paths
 const AUDIO_PATHS = {
   level1: new URL('./assets/audio/level1-bg.mp3', import.meta.url).href,
   level2: new URL('./assets/audio/level2-bg.mp3', import.meta.url).href,
@@ -48,7 +49,7 @@ const ctx = canvas.getContext('2d')!;
 const engine = Engine.create();
 const world = engine.world;
 
-// FIXED: Reduced bounciness and improved physics for less bouncing
+// Improved physics for mobile
 world.gravity.y = 1;
 engine.timing.timeScale = 0.9;
 
@@ -64,36 +65,51 @@ let friend3Image: HTMLImageElement;
 let friend4Image: HTMLImageElement;
 let imagesLoaded = false;
 
-// Orientation handling
+// Enhanced orientation handling with 5-second delay
 function checkOrientation() {
-  const isMobile = window.innerWidth <= 768;
+  const isMobile = window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   const isLandscape = window.matchMedia("(orientation: landscape)").matches;
   
   if (isMobile) {
     if (isLandscape) {
-      // We're on mobile and in landscape - enable game
-      document.body.classList.add('landscape-mode');
-      isLandscapeMode = true;
-      
-      // If we were in the menu and just rotated to landscape, show the menu
-      if (gameState === 'menu') {
-        showMenu();
+      // Clear any existing timer
+      if (landscapeCheckTimer) {
+        clearTimeout(landscapeCheckTimer);
+        landscapeCheckTimer = null;
       }
       
-      // Resize and rebuild if playing
-      if (gameState === 'playing') {
-        setTimeout(() => {
-          resizeCanvas();
-          buildWorld();
-        }, 100);
-      }
+      // Wait 5 seconds before enabling landscape mode
+      landscapeCheckTimer = setTimeout(() => {
+        document.body.classList.add('landscape-mode');
+        isLandscapeMode = true;
+        
+        // If we were in the menu and just rotated to landscape, show the menu
+        if (gameState === 'menu') {
+          showMenu();
+        }
+        
+        // Resize and rebuild if playing
+        if (gameState === 'playing') {
+          setTimeout(() => {
+            resizeCanvas();
+            buildWorld();
+          }, 100);
+        }
+      }, 5000); // 5 second delay
+      
     } else {
       // We're on mobile and in portrait - show rotate message
       document.body.classList.remove('landscape-mode');
       isLandscapeMode = false;
+      
+      // Clear timer if switching back to portrait
+      if (landscapeCheckTimer) {
+        clearTimeout(landscapeCheckTimer);
+        landscapeCheckTimer = null;
+      }
     }
   } else {
-    // We're on desktop - always enable game
+    // We're on desktop - always enable game immediately
     document.body.classList.add('landscape-mode');
     isLandscapeMode = true;
   }
@@ -101,7 +117,6 @@ function checkOrientation() {
 
 // Initialize all audio elements
 function initializeAudio() {
-  // We'll create audio elements on-demand
   victorySound = null;
   defeatSound = null;
 }
@@ -115,7 +130,6 @@ function createAndPlayAudio(src: string, volume: number = 0.7, loop: boolean = f
     audio.volume = volume;
     audio.loop = loop;
     
-    // Add error handling for the audio element
     audio.addEventListener('error', (e) => {
       console.log('Audio element error:', e, 'Src:', src);
     });
@@ -124,7 +138,6 @@ function createAndPlayAudio(src: string, volume: number = 0.7, loop: boolean = f
     if (playPromise !== undefined) {
       playPromise.catch(error => {
         console.log('Audio play failed:', error, 'Src:', src);
-        // Don't throw error, just log it
       });
     }
     
@@ -147,10 +160,8 @@ function stopBackgroundMusic() {
 
 // Play background music for current level
 function playLevelMusic() {
-  // Don't play level music if we're currently playing victory/defeat sounds
   if (isPlayingVictoryOrDefeat) return;
   
-  // Stop current music if playing
   stopBackgroundMusic();
   
   let musicPath = '';
@@ -163,7 +174,6 @@ function playLevelMusic() {
   }
   
   if (musicPath && !isMuted) {
-    console.log('Playing level music:', musicPath);
     bgMusic = createAndPlayAudio(musicPath, 0.5, true);
     currentBgMusic = musicPath;
   }
@@ -173,39 +183,27 @@ function playLevelMusic() {
 function playVictorySound() {
   if (isMuted) return;
   
-  console.log('Playing victory sound');
-  
-  // Stop background music
   stopBackgroundMusic();
-  
-  // Set flag to prevent level music from starting
   isPlayingVictoryOrDefeat = true;
   
-  // Clean up any existing victory sound
   if (victorySound) {
     victorySound.pause();
     victorySound = null;
   }
   
-  // Create and play victory sound
   victorySound = createAndPlayAudio(AUDIO_PATHS.victory, 0.7, false);
   
-  // Reset flag when victory sound ends
   if (victorySound) {
     victorySound.addEventListener('ended', () => {
-      console.log('Victory sound ended');
       isPlayingVictoryOrDefeat = false;
       victorySound = null;
     });
     
-    // Also reset flag if there's an error
     victorySound.addEventListener('error', () => {
-      console.log('Victory sound error');
       isPlayingVictoryOrDefeat = false;
       victorySound = null;
     });
   } else {
-    // If sound creation failed, reset flag immediately
     isPlayingVictoryOrDefeat = false;
   }
 }
@@ -214,39 +212,27 @@ function playVictorySound() {
 function playDefeatSound() {
   if (isMuted) return;
   
-  console.log('Playing defeat sound');
-  
-  // Stop background music
   stopBackgroundMusic();
-  
-  // Set flag to prevent level music from starting
   isPlayingVictoryOrDefeat = true;
   
-  // Clean up any existing defeat sound
   if (defeatSound) {
     defeatSound.pause();
     defeatSound = null;
   }
   
-  // Create and play defeat sound
   defeatSound = createAndPlayAudio(AUDIO_PATHS.defeat, 0.7, false);
   
-  // Reset flag when defeat sound ends
   if (defeatSound) {
     defeatSound.addEventListener('ended', () => {
-      console.log('Defeat sound ended');
       isPlayingVictoryOrDefeat = false;
       defeatSound = null;
     });
     
-    // Also reset flag if there's an error
     defeatSound.addEventListener('error', () => {
-      console.log('Defeat sound error');
       isPlayingVictoryOrDefeat = false;
       defeatSound = null;
     });
   } else {
-    // If sound creation failed, reset flag immediately
     isPlayingVictoryOrDefeat = false;
   }
 }
@@ -267,7 +253,6 @@ function updateMuteState() {
       defeatSound.volume = 0;
     }
   } else {
-    // Unmute - restart level music if in playing state and not playing victory/defeat
     if (gameState === 'playing' && !isPlayingVictoryOrDefeat) {
       playLevelMusic();
     }
@@ -279,14 +264,19 @@ function updateMuteState() {
 function resizeCanvas() {
   const dpr = Math.max(1, window.devicePixelRatio || 1);
   
-  if (isLandscapeMode && window.innerWidth <= 768) {
-    // Mobile landscape - use full viewport
+  if (isLandscapeMode && (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent))) {
+    // Mobile landscape - use full viewport with better scaling
     const w = window.innerWidth;
     const h = window.innerHeight;
-    canvas.style.width = `${w}px`;
-    canvas.style.height = `${h}px`;
-    canvas.width = Math.floor(w * dpr);
-    canvas.height = Math.floor(h * dpr);
+    
+    // Adjust for iPhone notch/safe areas
+    const safeWidth = w;
+    const safeHeight = h;
+    
+    canvas.style.width = `${safeWidth}px`;
+    canvas.style.height = `${safeHeight}px`;
+    canvas.width = Math.floor(safeWidth * dpr);
+    canvas.height = Math.floor(safeHeight * dpr);
   } else {
     // Desktop or tablet
     const w = Math.max(320, window.innerWidth);
@@ -302,7 +292,6 @@ function resizeCanvas() {
 
 let WORLD_W = window.innerWidth;
 let WORLD_H = window.innerHeight;
-// KEEP BIRD SIZE AT 25 (good size)
 let BIRD_RADIUS = 25;
 let STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
 
@@ -359,20 +348,17 @@ function loadImages(): Promise<boolean> {
 
     const onImageLoad = () => {
       imagesLoadedCount++;
-      console.log(`✅ Loaded image ${imagesLoadedCount}/${imagesToLoad}`);
       if (imagesLoadedCount === imagesToLoad) {
         imagesLoaded = true;
-        console.log('🎉 All friend images loaded successfully!');
         resolve(true);
       }
     };
 
     const onImageError = (err: string) => {
-      console.error('❌ Failed to load image:', err);
+      console.error('Failed to load image:', err);
       imagesLoadedCount++;
       if (imagesLoadedCount === imagesToLoad) {
         imagesLoaded = false;
-        console.warn('⚠️ Some images failed to load, using fallback rendering');
         resolve(false);
       }
     };
@@ -387,16 +373,12 @@ function loadImages(): Promise<boolean> {
     friend3Image.onerror = () => onImageError('friend3-face.png');
     friend4Image.onerror = () => onImageError('friend4-face.png');
 
-    // Try using new URL with import.meta.url
     try {
       friend1Image.src = new URL('./assets/friend1-face.png', import.meta.url).href;
       friend2Image.src = new URL('./assets/friend2-face.png', import.meta.url).href;
       friend3Image.src = new URL('./assets/friend3-face.png', import.meta.url).href;
       friend4Image.src = new URL('./assets/friend4-face.png', import.meta.url).href;
-      console.log('🔍 Trying to load images with import.meta.url');
     } catch (e) {
-      console.error('import.meta.url failed, trying relative paths', e);
-      // Fallback to relative paths
       friend1Image.src = './assets/friend1-face.png';
       friend2Image.src = './assets/friend2-face.png';
       friend3Image.src = './assets/friend3-face.png';
@@ -472,12 +454,11 @@ function spawnBirds(types: ('red' | 'blue' | 'yellow')[]) {
     const x = startX - (i * (BIRD_RADIUS * 2.8));
     const y = startY;
     
-    // FIXED: Reduced bounciness and increased friction for less bouncing
     const body = Bodies.circle(x, y, BIRD_RADIUS, {
       label: 'bird',
-      restitution: 0.3, // Reduced from 0.6 to 0.3 (less bouncy)
-      friction: 0.8,    // Increased from 0.4 to 0.8 (more friction)
-      frictionAir: 0.01, // Reduced from 0.005 (birds fly further)
+      restitution: 0.3,
+      friction: 0.8,
+      frictionAir: 0.01,
       density: 0.003,
       collisionFilter: { group: -1 }
     });
@@ -511,9 +492,7 @@ function attachBirdToSling(index: number) {
     render: { visible: false }
   } as any);
   
-  // FIX: Use Composite.add instead of World.add for constraints
   Composite.add(world, slingConstraint);
-  
   birdObj.launched = false;
 }
 
@@ -527,7 +506,9 @@ function releaseBirdFromSling() {
   try { World.remove(world, slingConstraint); } catch (e) {}
   slingConstraint = null;
 
+  // FIXED: Better launch detection to prevent backwards launches
   if (dist < 15) {
+    // Too small pull - reset bird
     Body.setPosition(birdBody, { x: slingAnchor.x, y: slingAnchor.y });
     Body.setVelocity(birdBody, { x: 0, y: 0 });
     Body.setAngularVelocity(birdBody, 0);
@@ -538,11 +519,14 @@ function releaseBirdFromSling() {
   const power = Math.min(dist / 60, 2.5);
   const velocityMag = power * 12;
 
-  const velocity = { x: (dx / dist) * velocityMag, y: (dy / dist) * velocityMag };
+  // FIXED: Ensure proper launch direction (always away from slingshot)
+  const velocity = { 
+    x: (dx / dist) * velocityMag, 
+    y: (dy / dist) * velocityMag 
+  };
+  
   Body.setVelocity(birdBody, velocity);
   Body.setAngularVelocity(birdBody, (Math.random() - 0.5) * 0.2);
-
-  (birdBody as any).frictionAir = 0.01;
 
   const idx = birds.findIndex((b) => b.body === birdBody);
   if (idx >= 0) {
@@ -562,12 +546,11 @@ function addStableBlock(x: number, y: number, w: number, h: number, type: Block[
     clay: 0.0025
   };
 
-  // FIXED: Reduced bounciness for blocks
   const body = Bodies.rectangle(x, y, w, h, {
     label: 'block',
     isStatic: true,
-    friction: 0.8,      // Increased friction
-    restitution: 0.2,   // Reduced bounciness
+    friction: 0.8,
+    restitution: 0.2,
     density: densities[type],
     collisionFilter: { group: 0 }
   });
@@ -591,7 +574,6 @@ function makeBlockDynamic(block: Block) {
   Body.setStatic(block.body, false);
   block.isStatic = false;
   
-  // FIXED: Keep the reduced bounciness when making dynamic
   Body.set(block.body, {
     restitution: 0.2,
     friction: 0.8
@@ -603,15 +585,14 @@ function makeBlockDynamic(block: Block) {
   });
 }
 
-// SIGNIFICANTLY INCREASED PIG SIZES: regular pigs from 20 to 50, boss pigs from 25 to 60
+// Adjusted pig sizes for better mobile spacing
 function addPig(x: number, y: number, health: number, isBoss: boolean): Matter.Body {
-  const radius = isBoss ? 60 : 50;
+  const radius = isBoss ? 40 : 30; // Reduced sizes for better spacing
   
-  // FIXED: Reduced bounciness for pigs
   const body = Bodies.circle(x, y, radius, {
     label: 'pig',
-    restitution: 0.2,   // Reduced from 0.4 to 0.2
-    friction: 0.8,      // Increased from 0.6 to 0.8
+    restitution: 0.2,
+    friction: 0.8,
     density: 0.0025,
     collisionFilter: { group: 0 },
     isStatic: false
@@ -707,14 +688,11 @@ function handleCollision(event: Matter.IEventCollision<Matter.Engine>) {
       const bird = birds.find(b => b.body === birdBody);
       
       if (block && bird) {
-        // Make block dynamic immediately (Angry Birds style)
         if (block.isStatic) {
           makeBlockDynamic(block);
         }
         
-        // Damage on any impact
         const damage = calculateDamage(Math.max(impactSpeed, 2), bird.type, block.type);
-        
         block.health -= damage;
         updateBlockDamageState(block);
         
@@ -995,12 +973,13 @@ function drawOriginalPig(pig: Pig, r: number) {
   }
 }
 
+// UPDATED: More birds per level (5,6,7,8)
 // REAL ANGRY BIRDS: Low health values for easy destruction
 function buildAssamHouse(x: number) {
   const baseY = STRUCTURE_BASE_Y;
   
-  // Increased platform width to accommodate larger pigs
-  const platform = Bodies.rectangle(x, baseY, 450, 30, {
+  // Adjusted platform width for better mobile spacing
+  const platform = Bodies.rectangle(x, baseY, 400, 30, {
     isStatic: true, 
     label: 'platform', 
     friction: 0.9, 
@@ -1008,146 +987,146 @@ function buildAssamHouse(x: number) {
   });
   World.add(world, platform);
 
-  // Increased spacing between blocks for larger pigs
-  addStableBlock(x - 90, baseY - 20, 40, 30, 'clay', 3);
-  addStableBlock(x - 45, baseY - 20, 40, 30, 'clay', 3);
-  addStableBlock(x, baseY - 20, 40, 30, 'clay', 3);
-  addStableBlock(x + 45, baseY - 20, 40, 30, 'clay', 3);
-  addStableBlock(x + 90, baseY - 20, 40, 30, 'clay', 3);
+  // Adjusted spacing for better mobile layout
+  addStableBlock(x - 80, baseY - 20, 35, 25, 'clay', 3);
+  addStableBlock(x - 40, baseY - 20, 35, 25, 'clay', 3);
+  addStableBlock(x, baseY - 20, 35, 25, 'clay', 3);
+  addStableBlock(x + 40, baseY - 20, 35, 25, 'clay', 3);
+  addStableBlock(x + 80, baseY - 20, 35, 25, 'clay', 3);
 
-  addStableBlock(x, baseY - 50, 260, 20, 'wood', 2);
+  addStableBlock(x, baseY - 50, 220, 20, 'wood', 2);
 
-  addStableBlock(x - 80, baseY - 85, 20, 70, 'wood', 4);
-  addStableBlock(x + 80, baseY - 85, 20, 70, 'wood', 4);
-  addStableBlock(x - 35, baseY - 85, 20, 70, 'wood', 4);
-  addStableBlock(x + 35, baseY - 85, 20, 70, 'wood', 4);
+  addStableBlock(x - 70, baseY - 85, 18, 60, 'wood', 4);
+  addStableBlock(x + 70, baseY - 85, 18, 60, 'wood', 4);
+  addStableBlock(x - 30, baseY - 85, 18, 60, 'wood', 4);
+  addStableBlock(x + 30, baseY - 85, 18, 60, 'wood', 4);
 
-  addStableBlock(x - 50, baseY - 120, 110, 25, 'thatch', 1);
-  addStableBlock(x + 50, baseY - 120, 110, 25, 'thatch', 1);
+  addStableBlock(x - 45, baseY - 120, 90, 20, 'thatch', 1);
+  addStableBlock(x + 45, baseY - 120, 90, 20, 'thatch', 1);
 
-  addStableBlock(x - 60, baseY - 70, 35, 25, 'glass', 1);
-  addStableBlock(x + 60, baseY - 70, 35, 25, 'glass', 1);
+  addStableBlock(x - 50, baseY - 70, 30, 20, 'glass', 1);
+  addStableBlock(x + 50, baseY - 70, 30, 20, 'glass', 1);
 
-  addStableBlock(x, baseY - 145, 240, 20, 'thatch', 1);
+  addStableBlock(x, baseY - 145, 200, 20, 'thatch', 1);
   
-  addStableBlock(x, baseY - 155, 60, 15, 'wood', 2);
-  addStableBlock(x, baseY - 30, 80, 30, 'wood', 3);
+  addStableBlock(x, baseY - 155, 50, 12, 'wood', 2);
+  addStableBlock(x, baseY - 30, 70, 25, 'wood', 3);
 
-  // Adjusted pig positions for larger size
-  addPig(x - 35, baseY - 60, 5, false);
-  addPig(x + 35, baseY - 60, 5, false);
+  // Adjusted pig positions for better spacing
+  addPig(x - 30, baseY - 60, 5, false);
+  addPig(x + 30, baseY - 60, 5, false);
   addPig(x, baseY - 100, 5, false);
-  addPig(x - 80, baseY - 40, 5, false);
+  addPig(x - 70, baseY - 40, 5, false);
 }
 
 function buildTwoStory(x: number) {
   const baseY = STRUCTURE_BASE_Y;
   
-  // Increased platform width
-  const platform = Bodies.rectangle(x, baseY, 500, 30, {
+  // Adjusted platform width
+  const platform = Bodies.rectangle(x, baseY, 450, 30, {
     isStatic: true, label: 'platform', friction: 0.9, restitution: 0.1
   });
   World.add(world, platform);
 
-  addStableBlock(x - 130, baseY - 35, 35, 70, 'stone', 5);
-  addStableBlock(x + 130, baseY - 35, 35, 70, 'stone', 5);
-  addStableBlock(x, baseY - 70, 300, 25, 'stone', 4);
+  addStableBlock(x - 120, baseY - 35, 30, 60, 'stone', 5);
+  addStableBlock(x + 120, baseY - 35, 30, 60, 'stone', 5);
+  addStableBlock(x, baseY - 70, 270, 25, 'stone', 4);
 
-  addStableBlock(x - 110, baseY - 105, 30, 70, 'stone', 5);
-  addStableBlock(x + 110, baseY - 105, 30, 70, 'stone', 5);
-  addStableBlock(x, baseY - 140, 260, 25, 'stone', 4);
+  addStableBlock(x - 100, baseY - 105, 28, 60, 'stone', 5);
+  addStableBlock(x + 100, baseY - 105, 28, 60, 'stone', 5);
+  addStableBlock(x, baseY - 140, 230, 25, 'stone', 4);
 
-  addStableBlock(x - 90, baseY - 175, 30, 70, 'wood', 4);
-  addStableBlock(x + 90, baseY - 175, 30, 70, 'wood', 4);
-  addStableBlock(x, baseY - 210, 220, 25, 'wood', 3);
+  addStableBlock(x - 80, baseY - 175, 25, 60, 'wood', 4);
+  addStableBlock(x + 80, baseY - 175, 25, 60, 'wood', 4);
+  addStableBlock(x, baseY - 210, 190, 25, 'wood', 3);
 
-  addStableBlock(x - 100, baseY - 50, 35, 40, 'glass', 1);
-  addStableBlock(x + 100, baseY - 50, 35, 40, 'glass', 1);
-  addStableBlock(x - 90, baseY - 120, 30, 35, 'glass', 1);
-  addStableBlock(x + 90, baseY - 120, 30, 35, 'glass', 1);
+  addStableBlock(x - 90, baseY - 50, 30, 35, 'glass', 1);
+  addStableBlock(x + 90, baseY - 50, 30, 35, 'glass', 1);
+  addStableBlock(x - 80, baseY - 120, 25, 30, 'glass', 1);
+  addStableBlock(x + 80, baseY - 120, 25, 30, 'glass', 1);
 
-  addStableBlock(x, baseY - 85, 170, 15, 'wood', 2);
-  addStableBlock(x, baseY - 225, 260, 20, 'wood', 2);
+  addStableBlock(x, baseY - 85, 150, 15, 'wood', 2);
+  addStableBlock(x, baseY - 225, 220, 20, 'wood', 2);
 
-  // Adjusted pig positions for larger size
-  addPig(x - 90, baseY - 45, 6, false);
-  addPig(x + 90, baseY - 45, 6, false);
-  addPig(x - 70, baseY - 115, 6, false);
-  addPig(x + 70, baseY - 115, 6, false);
+  // Adjusted pig positions for better spacing
+  addPig(x - 80, baseY - 45, 6, false);
+  addPig(x + 80, baseY - 45, 6, false);
+  addPig(x - 60, baseY - 115, 6, false);
+  addPig(x + 60, baseY - 115, 6, false);
   addPig(x, baseY - 185, 6, false);
 }
 
 function buildThreeStory(x: number) {
   const baseY = STRUCTURE_BASE_Y;
   
-  // Increased platform width
-  const platform = Bodies.rectangle(x, baseY, 550, 30, {
+  // Adjusted platform width
+  const platform = Bodies.rectangle(x, baseY, 500, 30, {
     isStatic: true, label: 'platform', friction: 0.9, restitution: 0.1
   });
   World.add(world, platform);
 
-  addStableBlock(x - 150, baseY - 40, 35, 80, 'stone', 6);
-  addStableBlock(x + 150, baseY - 40, 35, 80, 'stone', 6);
-  addStableBlock(x, baseY - 80, 320, 25, 'stone', 5);
+  addStableBlock(x - 140, baseY - 40, 30, 70, 'stone', 6);
+  addStableBlock(x + 140, baseY - 40, 30, 70, 'stone', 6);
+  addStableBlock(x, baseY - 80, 290, 25, 'stone', 5);
 
-  addStableBlock(x - 130, baseY - 120, 32, 80, 'stone', 5);
-  addStableBlock(x + 130, baseY - 120, 32, 80, 'stone', 5);
-  addStableBlock(x, baseY - 160, 280, 25, 'stone', 4);
+  addStableBlock(x - 120, baseY - 120, 28, 70, 'stone', 5);
+  addStableBlock(x + 120, baseY - 120, 28, 70, 'stone', 5);
+  addStableBlock(x, baseY - 160, 250, 25, 'stone', 4);
 
-  addStableBlock(x - 110, baseY - 200, 30, 80, 'stone', 4);
-  addStableBlock(x + 110, baseY - 200, 30, 80, 'stone', 4);
-  addStableBlock(x, baseY - 240, 240, 25, 'stone', 3);
+  addStableBlock(x - 100, baseY - 200, 25, 70, 'stone', 4);
+  addStableBlock(x + 100, baseY - 200, 25, 70, 'stone', 4);
+  addStableBlock(x, baseY - 240, 210, 25, 'stone', 3);
 
-  addStableBlock(x - 90, baseY - 280, 28, 80, 'wood', 3);
-  addStableBlock(x + 90, baseY - 280, 28, 80, 'wood', 3);
-  addStableBlock(x, baseY - 320, 200, 25, 'wood', 2);
+  addStableBlock(x - 80, baseY - 280, 25, 70, 'wood', 3);
+  addStableBlock(x + 80, baseY - 280, 25, 70, 'wood', 3);
+  addStableBlock(x, baseY - 320, 170, 25, 'wood', 2);
 
-  addStableBlock(x - 100, baseY - 55, 32, 45, 'glass', 1);
-  addStableBlock(x + 100, baseY - 55, 32, 45, 'glass', 1);
-  addStableBlock(x - 90, baseY - 135, 30, 40, 'glass', 1);
-  addStableBlock(x + 90, baseY - 135, 30, 40, 'glass', 1);
-  addStableBlock(x - 70, baseY - 215, 28, 35, 'glass', 1);
-  addStableBlock(x + 70, baseY - 215, 28, 35, 'glass', 1);
+  addStableBlock(x - 90, baseY - 55, 28, 40, 'glass', 1);
+  addStableBlock(x + 90, baseY - 55, 28, 40, 'glass', 1);
+  addStableBlock(x - 80, baseY - 135, 25, 35, 'glass', 1);
+  addStableBlock(x + 80, baseY - 135, 25, 35, 'glass', 1);
+  addStableBlock(x - 60, baseY - 215, 25, 30, 'glass', 1);
+  addStableBlock(x + 60, baseY - 215, 25, 30, 'glass', 1);
 
-  addStableBlock(x, baseY - 350, 220, 20, 'wood', 2);
+  addStableBlock(x, baseY - 350, 190, 20, 'wood', 2);
 
-  // Adjusted pig positions for larger size
-  addPig(x - 100, baseY - 50, 8, false);
-  addPig(x + 100, baseY - 50, 8, false);
-  addPig(x - 80, baseY - 130, 8, false);
-  addPig(x + 80, baseY - 130, 8, false);
+  // Adjusted pig positions for better spacing
+  addPig(x - 90, baseY - 50, 8, false);
+  addPig(x + 90, baseY - 50, 8, false);
+  addPig(x - 70, baseY - 130, 8, false);
+  addPig(x + 70, baseY - 130, 8, false);
   addPig(x, baseY - 270, 12, true);
 }
 
 function buildFinalLevel(x: number) {
   const baseY = STRUCTURE_BASE_Y;
   
-  // Increased platform width
-  const platform = Bodies.rectangle(x, baseY, 600, 30, {
+  // Adjusted platform width
+  const platform = Bodies.rectangle(x, baseY, 550, 30, {
     isStatic: true, label: 'platform', friction: 0.9, restitution: 0.1
   });
   World.add(world, platform);
 
-  addStableBlock(x - 180, baseY - 60, 40, 120, 'stone', 8);
-  addStableBlock(x + 180, baseY - 60, 40, 120, 'stone', 8);
+  addStableBlock(x - 160, baseY - 60, 35, 100, 'stone', 8);
+  addStableBlock(x + 160, baseY - 60, 35, 100, 'stone', 8);
 
-  addStableBlock(x - 110, baseY - 40, 35, 80, 'stone', 6);
-  addStableBlock(x + 110, baseY - 40, 35, 80, 'stone', 6);
-  addStableBlock(x, baseY - 80, 260, 25, 'stone', 5);
+  addStableBlock(x - 100, baseY - 40, 30, 70, 'stone', 6);
+  addStableBlock(x + 100, baseY - 40, 30, 70, 'stone', 6);
+  addStableBlock(x, baseY - 80, 230, 25, 'stone', 5);
 
-  addStableBlock(x - 90, baseY - 120, 32, 80, 'stone', 4);
-  addStableBlock(x + 90, baseY - 120, 32, 80, 'stone', 4);
-  addStableBlock(x, baseY - 160, 220, 25, 'stone', 3);
+  addStableBlock(x - 80, baseY - 120, 28, 70, 'stone', 4);
+  addStableBlock(x + 80, baseY - 120, 28, 70, 'stone', 4);
+  addStableBlock(x, baseY - 160, 190, 25, 'stone', 3);
 
-  addStableBlock(x - 70, baseY - 200, 30, 80, 'stone', 3);
-  addStableBlock(x + 70, baseY - 200, 30, 80, 'stone', 3);
-  addStableBlock(x, baseY - 240, 180, 25, 'stone', 2);
+  addStableBlock(x - 60, baseY - 200, 25, 70, 'stone', 3);
+  addStableBlock(x + 60, baseY - 200, 25, 70, 'stone', 3);
+  addStableBlock(x, baseY - 240, 150, 25, 'stone', 2);
 
-  // Adjusted pig positions for larger size
-  addPig(x - 180, baseY - 120, 8, false);
-  addPig(x + 180, baseY - 120, 8, false);
-  addPig(x - 90, baseY - 50, 8, false);
-  addPig(x + 90, baseY - 50, 8, false);
+  // Adjusted pig positions for better spacing
+  addPig(x - 160, baseY - 120, 8, false);
+  addPig(x + 160, baseY - 120, 8, false);
+  addPig(x - 80, baseY - 50, 8, false);
+  addPig(x + 80, baseY - 50, 8, false);
   addPig(x, baseY - 120, 8, false);
   addPig(x, baseY - 200, 8, false);
   addPig(x, baseY - 240, 15, true);
@@ -1159,20 +1138,22 @@ let rightWall: Matter.Body;
 let slingAnchor = { x: 170, y: 0 };
 
 function buildWorld() {
-  // Update world dimensions based on orientation
-  if (isLandscapeMode && window.innerWidth <= 768) {
+  // Update world dimensions based on orientation with better mobile scaling
+  if (isLandscapeMode && (window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent))) {
     WORLD_W = window.innerWidth;
     WORLD_H = window.innerHeight;
+    
+    // Adjust sizes for better mobile experience
+    BIRD_RADIUS = Math.max(18, Math.min(22, Math.floor(Math.min(WORLD_W, WORLD_H) * 0.025)));
   } else {
     WORLD_W = Math.max(320, window.innerWidth);
     WORLD_H = Math.max(480, window.innerHeight);
+    BIRD_RADIUS = 25;
   }
   
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  // KEEP BIRD RADIUS AT 25 (good size)
-  BIRD_RADIUS = Math.max(20, Math.min(28, Math.floor(Math.min(WORLD_W, WORLD_H) * 0.03)));
-  slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
-  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
+  slingAnchor.x = Math.max(120, Math.floor(WORLD_W * 0.12));
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 90;
 
   activeParticles.forEach(particle => {
     try { World.remove(world, particle); } catch (e) {}
@@ -1211,8 +1192,8 @@ function buildWorld() {
     {
       isStatic: true,
       label: 'ground',
-      friction: 0.9,      // Increased friction
-      restitution: 0.1    // Reduced bounciness
+      friction: 0.9,
+      restitution: 0.1
     }
   );
 
@@ -1230,7 +1211,7 @@ function buildWorld() {
   });
   World.add(world, [ground, leftWall, rightWall]);
 
-  const structureX = WORLD_W - Math.floor(WORLD_W * 0.3);
+  const structureX = WORLD_W - Math.floor(WORLD_W * 0.25); // Moved closer for better mobile gameplay
   
   console.log(`Building level ${currentLevel}`);
   switch (currentLevel) {
@@ -1251,14 +1232,15 @@ function buildWorld() {
       break;
   }
 
+  // UPDATED: More birds per level (5,6,7,8)
   const birdTypesList: ('red' | 'blue' | 'yellow')[][] = [
-    ['red', 'red', 'red'],
-    ['red', 'blue', 'red', 'blue'],
-    ['red', 'blue', 'yellow', 'red', 'blue'],
-    ['red', 'blue', 'yellow', 'blue', 'yellow']
+    ['red', 'red', 'red', 'blue', 'yellow'], // Level 1: 5 birds
+    ['red', 'blue', 'red', 'blue', 'yellow', 'red'], // Level 2: 6 birds
+    ['red', 'blue', 'yellow', 'red', 'blue', 'yellow', 'red'], // Level 3: 7 birds
+    ['red', 'blue', 'yellow', 'blue', 'yellow', 'red', 'blue', 'yellow'] // Level 4: 8 birds
   ];
   
-  const birdTypes = birdTypesList[currentLevel - 1] || ['red', 'red', 'red'];
+  const birdTypes = birdTypesList[currentLevel - 1] || ['red', 'red', 'red', 'blue', 'yellow'];
   spawnBirds(birdTypes);
   
   if (birds.length > 0) {
@@ -1348,6 +1330,7 @@ function clientToWorld(clientX: number, clientY: number) {
 }
 
 let dragStartTime = 0;
+let isDraggingTooLong = false;
 
 canvas.addEventListener('pointerdown', (ev) => {
   if (gameState !== 'playing') return;
@@ -1358,12 +1341,20 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (d < BIRD_RADIUS * 3) {
     dragging = true;
     dragStartTime = Date.now();
+    isDraggingTooLong = false;
     ev.preventDefault();
     if (slingConstraint) {
       try { World.remove(world, slingConstraint); } catch (e) {}
       slingConstraint = null;
     }
     canvas.style.cursor = 'grabbing';
+    
+    // Set timeout to prevent too long drags
+    setTimeout(() => {
+      if (dragging) {
+        isDraggingTooLong = true;
+      }
+    }, 2000); // 2 second timeout
   }
 });
 
@@ -1400,6 +1391,7 @@ canvas.addEventListener('pointermove', (ev) => {
 canvas.addEventListener('pointerup', (ev) => {
   if (!dragging || gameState !== 'playing') return;
   ev.preventDefault();
+  
   const current = birds[currentBirdIndex];
   if (current) {
     slingConstraint = Constraint.create({
@@ -1412,21 +1404,34 @@ canvas.addEventListener('pointerup', (ev) => {
     } as any);
     Composite.add(world, slingConstraint);
   }
+  
   dragging = false;
   canvas.style.cursor = 'default';
+  
   const dragDuration = Date.now() - dragStartTime;
-  if (dragDuration > 1000) {
+  
+  // FIXED: Better launch logic to prevent weird launches
+  if (isDraggingTooLong || dragDuration > 2000) {
+    // If dragged too long, reset to slingshot
+    attachBirdToSling(currentBirdIndex);
+  } else if (dragDuration > 100) {
+    // Normal launch
     setTimeout(() => releaseBirdFromSling(), 50);
   } else {
+    // Too quick tap - minimal launch
     releaseBirdFromSling();
   }
+  
+  isDraggingTooLong = false;
 });
 
 canvas.addEventListener('pointercancel', (ev) => {
   if (dragging && gameState === 'playing') {
     dragging = false;
     canvas.style.cursor = 'default';
-    releaseBirdFromSling();
+    isDraggingTooLong = false;
+    // Reset bird on cancel
+    attachBirdToSling(currentBirdIndex);
   }
 });
 
@@ -1581,8 +1586,7 @@ function renderFrame() {
     ctx.save();
     ctx.translate(p.position.x, p.position.y);
     ctx.rotate(p.angle);
-    // SIGNIFICANTLY INCREASED PIG RADIUS: regular pigs from 20 to 50, boss pigs from 25 to 60
-    const r = pig.isBoss ? 60 : 50;
+    const r = pig.isBoss ? 40 : 30;
 
     // Draw appropriate friend face on pig
     if (imagesLoaded) {
@@ -1590,16 +1594,14 @@ function renderFrame() {
       
       // Logic for choosing the right image
       if (pig.isBoss) {
-        // Boss pigs - different friends for different levels
         if (currentLevel === 3) {
-          pigImage = friend3Image; // Level 3 boss
+          pigImage = friend3Image;
         } else if (currentLevel === 4) {
-          pigImage = friend4Image; // Level 4 boss
+          pigImage = friend4Image;
         } else {
-          pigImage = friend2Image; // Fallback for any other bosses
+          pigImage = friend2Image;
         }
       } else {
-        // Regular pigs - always friend 2
         pigImage = friend2Image;
       }
       
@@ -1608,22 +1610,16 @@ function renderFrame() {
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.clip();
         
-        // Draw the face image
         ctx.drawImage(pigImage, -r, -r, r * 2, r * 2);
         
-        // Reset clipping
         ctx.restore();
         ctx.save();
         ctx.translate(p.position.x, p.position.y);
         ctx.rotate(p.angle);
       } else {
-        // Fallback to original pig colors
-        console.log('Pig image not complete, using fallback');
         drawOriginalPig(pig, r);
       }
     } else {
-      // Fallback to original pig colors
-      console.log('Images not loaded, using original pig');
       drawOriginalPig(pig, r);
     }
 
@@ -1710,7 +1706,7 @@ function renderFrame() {
     ctx.save();
     ctx.translate(b.position.x, b.position.y);
     ctx.rotate(b.angle);
-    const r = BIRD_RADIUS; // Kept at 25 (good size)
+    const r = BIRD_RADIUS;
 
     // Draw friend1 face on bird
     if (imagesLoaded && friend1Image && friend1Image.complete) {
@@ -1718,17 +1714,13 @@ function renderFrame() {
       ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.clip();
       
-      // Draw the face image
       ctx.drawImage(friend1Image, -r, -r, r * 2, r * 2);
       
-      // Reset clipping
       ctx.restore();
       ctx.save();
       ctx.translate(b.position.x, b.position.y);
       ctx.rotate(b.angle);
     } else {
-      // Fallback to original bird colors if images not loaded
-      console.log('Bird image not loaded, using fallback colors');
       const fill = br.type === 'red' ? '#DC143C' : (br.type === 'blue' ? '#1E90FF' : '#FFD700');
       ctx.fillStyle = fill;
       ctx.beginPath();
@@ -1788,13 +1780,9 @@ function renderFrame() {
 
 function showMenu() {
   gameState = 'menu';
-  // Stop any playing music when returning to menu
   stopBackgroundMusic();
-  
-  // Reset victory/defeat flag
   isPlayingVictoryOrDefeat = false;
   
-  // Clean up victory/defeat sounds
   if (victorySound) {
     victorySound.pause();
     victorySound = null;
@@ -1814,15 +1802,14 @@ function showMenu() {
 }
 
 function showGame() {
-  // Check if we're in landscape mode on mobile
-  if (window.innerWidth <= 768 && !isLandscapeMode) {
-    alert('Please rotate your device to landscape mode to play the game.');
+  // Enhanced landscape check with better mobile detection
+  const isMobile = window.innerWidth <= 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  if (isMobile && !isLandscapeMode) {
+    alert('Please rotate your device to landscape mode and wait 5 seconds for the game to start.');
     return;
   }
   
   gameState = 'playing';
-  
-  // Reset victory/defeat flag when starting a new game/level
   isPlayingVictoryOrDefeat = false;
   
   if (menuScreen) menuScreen.style.display = 'none';
@@ -1833,7 +1820,6 @@ function showGame() {
   if (canvas) canvas.style.display = 'block';
   if (muteBtn) muteBtn.style.display = 'block';
   
-  // PLAY LEVEL MUSIC
   playLevelMusic();
   buildWorld();
 }
@@ -1842,11 +1828,9 @@ function showLevelComplete() {
   if (gameState !== 'playing') return;
   gameState = 'levelComplete';
   
-  // STOP LEVEL MUSIC AND PLAY VICTORY SOUND
   stopBackgroundMusic();
   playVictorySound();
   
-  console.log(`Showing level complete screen for level ${currentLevel}`);
   if (levelCompleteScreen) levelCompleteScreen.style.display = 'flex';
   if (completeLevelEl) completeLevelEl.textContent = `Level ${currentLevel} Complete!`;
   if (finalScoreEl) finalScoreEl.textContent = `Score: ${globalScore}`;
@@ -1865,7 +1849,6 @@ function showGameOver() {
   if (gameState !== 'playing') return;
   gameState = 'gameOver';
   
-  // STOP LEVEL MUSIC AND PLAY DEFEAT SOUND
   stopBackgroundMusic();
   playDefeatSound();
   
@@ -1892,11 +1875,9 @@ function initializeEventListeners() {
 
   if (nextLevelBtn) {
     nextLevelBtn.addEventListener('click', () => {
-      console.log(`Next level clicked. Current level: ${currentLevel}`);
       if (currentLevel < 4) {
         currentLevel++;
-        console.log(`Moving to level ${currentLevel}`);
-        showGame(); // This will call playLevelMusic() for the new level
+        showGame();
       } else {
         showGameCompletion();
       }

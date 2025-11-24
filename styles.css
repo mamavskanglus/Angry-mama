@@ -404,3 +404,15 @@ button:active {
     height: 55px;
   }
 }
+
+/* iPhone specific fixes */
+@supports (-webkit-touch-callout: none) {
+  body {
+    /* iOS specific fixes */
+    height: -webkit-fill-available;
+  }
+  
+  #gameCanvas {
+    height: -webkit-fill-available;
+  }
+}
