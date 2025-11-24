@@ -64,7 +64,7 @@ let friend4Image: HTMLImageElement;
 let imagesLoaded = false;
 
 // Initialize all audio elements
-function initializeAudio() {
+function initializeAudio(): void {
   // We'll create audio elements on-demand
   victorySound = null;
   defeatSound = null;
@@ -100,7 +100,7 @@ function createAndPlayAudio(src: string, volume: number = 0.7, loop: boolean = f
 }
 
 // Stop background music
-function stopBackgroundMusic() {
+function stopBackgroundMusic(): void {
   if (bgMusic) {
     bgMusic.pause();
     bgMusic.currentTime = 0;
@@ -110,7 +110,7 @@ function stopBackgroundMusic() {
 }
 
 // Play background music for current level
-function playLevelMusic() {
+function playLevelMusic(): void {
   // Don't play level music if we're currently playing victory/defeat sounds
   if (isPlayingVictoryOrDefeat) return;
   
@@ -134,7 +134,7 @@ function playLevelMusic() {
 }
 
 // Play victory sound
-function playVictorySound() {
+function playVictorySound(): void {
   if (isMuted) return;
   
   console.log('Playing victory sound');
@@ -175,7 +175,7 @@ function playVictorySound() {
 }
 
 // Play defeat sound  
-function playDefeatSound() {
+function playDefeatSound(): void {
   if (isMuted) return;
   
   console.log('Playing defeat sound');
@@ -216,7 +216,7 @@ function playDefeatSound() {
 }
 
 // Update mute functionality
-function updateMuteState() {
+function updateMuteState(): void {
   isMuted = !isMuted;
   muteBtn.innerHTML = isMuted ? '🔇' : '🔊';
   
@@ -240,16 +240,53 @@ function updateMuteState() {
   }
 }
 
-function resizeCanvas() {
+function setupMobileScaling(): void {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  if (isMobile) {
+    // Use the actual viewport dimensions for mobile
+    WORLD_W = window.innerWidth;
+    WORLD_H = window.innerHeight;
+    
+    console.log(`Mobile detected: ${WORLD_W}x${WORLD_H}`);
+    
+    // Adjust bird size for mobile
+    BIRD_RADIUS = Math.max(15, Math.min(20, Math.floor(Math.min(WORLD_W, WORLD_H) * 0.04)));
+    
+    // Adjust slingshot position for mobile
+    slingAnchor.x = Math.max(100, Math.floor(WORLD_W * 0.15));
+    slingAnchor.y = WORLD_H - GROUND_HEIGHT - 80;
+    
+    console.log(`Mobile settings: Bird radius ${BIRD_RADIUS}, Sling at ${slingAnchor.x},${slingAnchor.y}`);
+  }
+}
+
+function resizeCanvas(): void {
   const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const w = Math.max(320, window.innerWidth);
-  const h = Math.max(480, window.innerHeight);
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
+  if (isMobile && window.innerHeight > window.innerWidth) {
+    // Portrait mode - use rotate message instead
+    return;
+  }
+  
+  // For landscape or desktop
+  const w = isMobile ? window.innerWidth : Math.max(320, window.innerWidth);
+  const h = isMobile ? window.innerHeight : Math.max(480, window.innerHeight);
+  
   canvas.style.width = `${w}px`;
   canvas.style.height = `${h}px`;
   canvas.width = Math.floor(w * dpr);
   canvas.height = Math.floor(h * dpr);
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  
+  WORLD_W = w;
+  WORLD_H = h;
+  STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
+  
+  setupMobileScaling();
 }
+
 resizeCanvas();
 
 let WORLD_W = window.innerWidth;
@@ -357,7 +394,7 @@ function loadImages(): Promise<boolean> {
   });
 }
 
-function createBackground() {
+function createBackground(): void {
   clouds = [];
   for (let i = 0; i < 6; i++) {
     clouds.push({
@@ -369,7 +406,7 @@ function createBackground() {
   }
 }
 
-function updateBackground() {
+function updateBackground(): void {
   for (const cloud of clouds) {
     cloud.x += cloud.speed;
     if (cloud.x > WORLD_W + cloud.size) {
@@ -379,7 +416,7 @@ function updateBackground() {
   }
 }
 
-function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
+function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.beginPath();
   ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
@@ -388,7 +425,7 @@ function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, size: nu
   ctx.fill();
 }
 
-function drawGrass(ctx: CanvasRenderingContext2D) {
+function drawGrass(ctx: CanvasRenderingContext2D): void {
   const baseY = WORLD_H - GROUND_HEIGHT + 5;
   ctx.strokeStyle = '#2daa2d';
   ctx.lineWidth = 2;
@@ -405,13 +442,13 @@ function drawGrass(ctx: CanvasRenderingContext2D) {
   }
 }
 
-function addScore(n: number) {
+function addScore(n: number): void {
   score += n;
   globalScore += n;
   if (scoreEl) scoreEl.textContent = `Score: ${score}`;
 }
 
-function spawnBirds(types: ('red' | 'blue' | 'yellow')[]) {
+function spawnBirds(types: ('red' | 'blue' | 'yellow')[]): void {
   for (const b of birds) {
     try { World.remove(world, b.body); } catch (e) {}
   }
@@ -437,7 +474,7 @@ function spawnBirds(types: ('red' | 'blue' | 'yellow')[]) {
   }
 }
 
-function attachBirdToSling(index: number) {
+function attachBirdToSling(index: number): void {
   if (index < 0 || index >= birds.length) return;
   currentBirdIndex = index;
   const birdObj = birds[index];
@@ -467,7 +504,7 @@ function attachBirdToSling(index: number) {
   birdObj.launched = false;
 }
 
-function releaseBirdFromSling() {
+function releaseBirdFromSling(): void {
   if (!slingConstraint) return;
   const birdBody = slingConstraint.bodyB as Matter.Body;
   const dx = slingAnchor.x - birdBody.position.x;
@@ -535,7 +572,7 @@ function addStableBlock(x: number, y: number, w: number, h: number, type: Block[
   return body;
 }
 
-function makeBlockDynamic(block: Block) {
+function makeBlockDynamic(block: Block): void {
   if (!block.isStatic) return;
   Body.setStatic(block.body, false);
   block.isStatic = false;
@@ -590,7 +627,7 @@ function calculateDamage(impactSpeed: number, birdType: string, blockType: strin
   return Math.max(1.0, damage);
 }
 
-function addCrackToBlock(block: Block, impactPoint: Matter.Vector) {
+function addCrackToBlock(block: Block, impactPoint: Matter.Vector): void {
   if (block.cracks.length < 6) {
     const relativeX = (impactPoint.x - block.body.position.x) / ((block.body.bounds.max.x - block.body.bounds.min.x) / 2);
     const relativeY = (impactPoint.y - block.body.position.y) / ((block.body.bounds.max.y - block.body.bounds.min.y) / 2);
@@ -604,7 +641,7 @@ function addCrackToBlock(block: Block, impactPoint: Matter.Vector) {
   }
 }
 
-function updateBlockDamageState(block: Block) {
+function updateBlockDamageState(block: Block): void {
   const healthRatio = block.health / block.maxHealth;
   
   if (healthRatio > 0.7) {
@@ -619,7 +656,7 @@ function updateBlockDamageState(block: Block) {
 }
 
 // LAG FIX: Optimized collision handling
-function handleCollision(event: Matter.IEventCollision<Matter.Engine>) {
+function handleCollision(event: Matter.IEventCollision<Matter.Engine>): void {
   const pairs = event.pairs;
   
   for (const pair of pairs) {
@@ -763,7 +800,7 @@ function handleCollision(event: Matter.IEventCollision<Matter.Engine>) {
 }
 
 // LAG FIX: Reduced particle effects
-function createDamageEffect(x: number, y: number, intensity: number, material: string) {
+function createDamageEffect(x: number, y: number, intensity: number, material: string): void {
   const particleCount = Math.min(Math.floor(intensity * 2), 6);
   
   for (let i = 0; i < particleCount; i++) {
@@ -802,7 +839,7 @@ function createDamageEffect(x: number, y: number, intensity: number, material: s
   }
 }
 
-function createDestructionEffect(x: number, y: number, blockType: Block['type']) {
+function createDestructionEffect(x: number, y: number, blockType: Block['type']): void {
   const particleCount = 8;
   
   for (let i = 0; i < particleCount; i++) {
@@ -837,7 +874,7 @@ function createDestructionEffect(x: number, y: number, blockType: Block['type'])
   }
 }
 
-function createPigDeathEffect(x: number, y: number, isBoss: boolean) {
+function createPigDeathEffect(x: number, y: number, isBoss: boolean): void {
   const particleCount = isBoss ? 10 : 6;
   
   for (let i = 0; i < particleCount; i++) {
@@ -886,7 +923,7 @@ function getBlockColor(type: Block['type']): string {
 }
 
 // Helper function for original pig rendering (fallback)
-function drawOriginalPig(pig: Pig, r: number) {
+function drawOriginalPig(pig: Pig, r: number): void {
   ctx.fillStyle = pig.isBoss ? '#FF6B6B' : '#81C784';
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
@@ -937,7 +974,7 @@ function drawOriginalPig(pig: Pig, r: number) {
 }
 
 // REAL ANGRY BIRDS: Low health values for easy destruction
-function buildAssamHouse(x: number) {
+function buildAssamHouse(x: number): void {
   const baseY = STRUCTURE_BASE_Y;
   
   // Increased platform width to accommodate larger pigs
@@ -981,7 +1018,7 @@ function buildAssamHouse(x: number) {
   addPig(x - 80, baseY - 40, 5, false);
 }
 
-function buildTwoStory(x: number) {
+function buildTwoStory(x: number): void {
   const baseY = STRUCTURE_BASE_Y;
   
   // Increased platform width
@@ -1018,7 +1055,7 @@ function buildTwoStory(x: number) {
   addPig(x, baseY - 185, 6, false);
 }
 
-function buildThreeStory(x: number) {
+function buildThreeStory(x: number): void {
   const baseY = STRUCTURE_BASE_Y;
   
   // Increased platform width
@@ -1060,7 +1097,7 @@ function buildThreeStory(x: number) {
   addPig(x, baseY - 270, 12, true);
 }
 
-function buildFinalLevel(x: number) {
+function buildFinalLevel(x: number): void {
   const baseY = STRUCTURE_BASE_Y;
   
   // Increased platform width
@@ -1099,11 +1136,13 @@ let leftWall: Matter.Body;
 let rightWall: Matter.Body;
 let slingAnchor = { x: 170, y: 0 };
 
-function buildWorld() {
+function buildWorld(): void {
+  setupMobileScaling();
+  
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  // KEEP BIRD RADIUS AT 25 (good size)
+  // KEEP BIRD SIZE AT 25 (good size)
   BIRD_RADIUS = Math.max(20, Math.min(28, Math.floor(Math.min(WORLD_W, WORLD_H) * 0.03)));
   slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
   slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
@@ -1198,7 +1237,7 @@ function buildWorld() {
   Events.on(engine, 'collisionStart', handleCollision);
 }
 
-function autoAdvance() {
+function autoAdvance(): void {
   if (gameState !== 'playing') return;
 
   for (let i = pigs.length - 1; i >= 0; i--) {
@@ -1269,7 +1308,7 @@ function autoAdvance() {
   advanceTimer = 0;
 }
 
-function clientToWorld(clientX: number, clientY: number) {
+function clientToWorld(clientX: number, clientY: number): { x: number; y: number } {
   const rect = canvas.getBoundingClientRect();
   const x = (clientX - rect.left) * (WORLD_W / rect.width);
   const y = (clientY - rect.top) * (WORLD_H / rect.height);
@@ -1359,7 +1398,7 @@ canvas.addEventListener('pointercancel', (ev) => {
   }
 });
 
-function renderFrame() {
+function renderFrame(): void {
   if (gameState !== 'playing') return;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1646,10 +1685,10 @@ function renderFrame() {
       ctx.beginPath();
       ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.clip();
-      
+        
       // Draw the face image
       ctx.drawImage(friend1Image, -r, -r, r * 2, r * 2);
-      
+        
       // Reset clipping
       ctx.restore();
       ctx.save();
@@ -1709,13 +1748,13 @@ function renderFrame() {
   }
 }
 
-(function loop() {
+(function loop(): void {
   autoAdvance();
   renderFrame();
   requestAnimationFrame(loop);
 })();
 
-function showMenu() {
+function showMenu(): void {
   gameState = 'menu';
   // Stop any playing music when returning to menu
   stopBackgroundMusic();
@@ -1742,7 +1781,7 @@ function showMenu() {
   if (muteBtn) muteBtn.style.display = 'none';
 }
 
-function showGame() {
+function showGame(): void {
   gameState = 'playing';
   
   // Reset victory/defeat flag when starting a new game/level
@@ -1761,7 +1800,7 @@ function showGame() {
   buildWorld();
 }
 
-function showLevelComplete() {
+function showLevelComplete(): void {
   if (gameState !== 'playing') return;
   gameState = 'levelComplete';
   
@@ -1775,7 +1814,7 @@ function showLevelComplete() {
   if (finalScoreEl) finalScoreEl.textContent = `Score: ${globalScore}`;
 }
 
-function showGameCompletion() {
+function showGameCompletion(): void {
   gameState = 'levelComplete';
   if (levelCompleteScreen) levelCompleteScreen.style.display = 'none';
   if (gameCompletionScreen) {
@@ -1784,7 +1823,7 @@ function showGameCompletion() {
   }
 }
 
-function showGameOver() {
+function showGameOver(): void {
   if (gameState !== 'playing') return;
   gameState = 'gameOver';
   
@@ -1796,7 +1835,7 @@ function showGameOver() {
   if (gameOverScoreEl) gameOverScoreEl.textContent = `Score: ${globalScore} | Level: ${currentLevel}`;
 }
 
-function initializeEventListeners() {
+function initializeEventListeners(): void {
   const playBtn = document.getElementById('playBtn');
   const nextLevelBtn = document.getElementById('nextLevelBtn');
   const menuFromCompleteBtn = document.getElementById('menuFromCompleteBtn');
@@ -1871,7 +1910,9 @@ function initializeEventListeners() {
 
 window.addEventListener('resize', () => {
   resizeCanvas();
-  if (gameState === 'playing') buildWorld();
+  if (gameState === 'playing') {
+    setTimeout(() => buildWorld(), 100); // Small delay to ensure resize is complete
+  }
 });
 
 // LAG FIX: Performance monitoring and cleanup
@@ -1890,31 +1931,6 @@ loadImages().then((success) => {
 }).catch((error) => {
   console.error('Initial image loading error:', error);
 });
-
-// Add this after your existing resizeCanvas function
-function handleMobileResize() {
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  
-  if (isMobile) {
-    // Force landscape dimensions on mobile
-    WORLD_W = Math.max(window.innerWidth, window.innerHeight);
-    WORLD_H = Math.min(window.innerWidth, window.innerHeight);
-    
-    canvas.style.width = '100vw';
-    canvas.style.height = '100vh';
-  } else {
-    resizeCanvas();
-  }
-}
-
-// Update your existing resize event listener
-window.addEventListener('resize', () => {
-  handleMobileResize();
-  if (gameState === 'playing') buildWorld();
-});
-
-// Call this on initial load
-handleMobileResize();
 
 // Initialize audio system
 initializeAudio();
