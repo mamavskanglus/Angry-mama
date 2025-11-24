@@ -6,19 +6,6 @@ let gameState: 'menu' | 'playing' | 'levelComplete' | 'gameOver' = 'menu';
 let currentLevel = 1;
 let globalScore = 0;
 let isMuted = false;
-let isLandscapeMode = false;
-
-function checkOrientation() {
-  const isMobile = window.innerWidth <= 768;
-  const isLandscape = window.matchMedia("(orientation: landscape)").matches;
-  
-  if (isMobile && !isLandscape) {
-    document.body.classList.remove('landscape-mode');
-  } else {
-    document.body.classList.add('landscape-mode');
-    isLandscapeMode = true;
-  }
-}
 
 const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
 const menuScreen = document.getElementById('menuScreen') as HTMLDivElement;
@@ -42,14 +29,14 @@ const engine = Engine.create();
 const world = engine.world;
 
 world.gravity.y = 1;
-engine.timing.timeScale = 0.9;
+engine.timing.timeScale = 1.0;
 
 const runner = Runner.create();
 Runner.run(runner, engine);
 
 const GROUND_HEIGHT = 90;
 
-// Friend images
+// Friend images - PROPERLY LOADED
 let friend1Image: HTMLImageElement;
 let friend2Image: HTMLImageElement;
 let friend3Image: HTMLImageElement;
@@ -68,9 +55,20 @@ function loadImages(): Promise<boolean> {
 
     const onImageLoad = () => {
       imagesLoadedCount++;
+      console.log(`Loaded image ${imagesLoadedCount}/${imagesToLoad}`);
       if (imagesLoadedCount === imagesToLoad) {
         imagesLoaded = true;
+        console.log('All images loaded successfully!');
         resolve(true);
+      }
+    };
+
+    const onImageError = (err: string) => {
+      console.error('Failed to load image:', err);
+      imagesLoadedCount++;
+      if (imagesLoadedCount === imagesToLoad) {
+        imagesLoaded = false;
+        resolve(false);
       }
     };
 
@@ -79,25 +77,16 @@ function loadImages(): Promise<boolean> {
     friend3Image.onload = onImageLoad;
     friend4Image.onload = onImageLoad;
 
-    friend1Image.onerror = friend2Image.onerror = friend3Image.onerror = friend4Image.onerror = () => {
-      imagesLoadedCount++;
-      if (imagesLoadedCount === imagesToLoad) {
-        imagesLoaded = false;
-        resolve(false);
-      }
-    };
+    friend1Image.onerror = () => onImageError('friend1-face.png');
+    friend2Image.onerror = () => onImageError('friend2-face.png');
+    friend3Image.onerror = () => onImageError('friend3-face.png');
+    friend4Image.onerror = () => onImageError('friend4-face.png');
 
-    try {
-      friend1Image.src = new URL('./assets/friend1-face.png', import.meta.url).href;
-      friend2Image.src = new URL('./assets/friend2-face.png', import.meta.url).href;
-      friend3Image.src = new URL('./assets/friend3-face.png', import.meta.url).href;
-      friend4Image.src = new URL('./assets/friend4-face.png', import.meta.url).href;
-    } catch (e) {
-      friend1Image.src = './assets/friend1-face.png';
-      friend2Image.src = './assets/friend2-face.png';
-      friend3Image.src = './assets/friend3-face.png';
-      friend4Image.src = './assets/friend4-face.png';
-    }
+    // Use absolute paths for Netlify
+    friend1Image.src = '/assets/friend1-face.png';
+    friend2Image.src = '/assets/friend2-face.png';
+    friend3Image.src = '/assets/friend3-face.png';
+    friend4Image.src = '/assets/friend4-face.png';
   });
 }
 
@@ -149,6 +138,7 @@ let blocks: Block[] = [];
 let pigs: Pig[] = [];
 let score = 0;
 let dragging = false;
+let dragStart = { x: 0, y: 0 };
 let advanceTimer = 0;
 
 let clouds: { x: number; y: number; size: number; speed: number }[] = [];
@@ -261,6 +251,7 @@ function attachBirdToSling(index: number) {
   birdObj.launched = false;
 }
 
+// FIXED SLINGSHOT LOGIC
 function releaseBirdFromSling() {
   if (!slingConstraint) return;
   
@@ -272,27 +263,27 @@ function releaseBirdFromSling() {
   World.remove(world, slingConstraint);
   slingConstraint = null;
 
-  if (dist < 10) {
-    Body.setPosition(birdBody, { x: 170, y: WORLD_H - GROUND_HEIGHT - 110 });
+  // Only launch if pulled back sufficiently
+  if (dist > 20) {
+    const power = Math.min(dist / 80, 1.5);
+    const velocityMag = power * 15;
+
+    const velocity = { 
+      x: (dx / dist) * velocityMag, 
+      y: (dy / dist) * velocityMag 
+    };
+    
+    Body.setVelocity(birdBody, velocity);
+    Body.setAngularVelocity(birdBody, (Math.random() - 0.5) * 0.2);
+
+    const idx = birds.findIndex((b) => b.body === birdBody);
+    if (idx >= 0) {
+      birds[idx].launched = true;
+      birds[idx].launchTime = Date.now();
+    }
+  } else {
+    // Not pulled enough, reset bird
     attachBirdToSling(currentBirdIndex);
-    return;
-  }
-
-  const power = Math.min(dist / 60, 2.5);
-  const velocityMag = power * 12;
-
-  const velocity = { 
-    x: (dx / dist) * velocityMag, 
-    y: (dy / dist) * velocityMag 
-  };
-  
-  Body.setVelocity(birdBody, velocity);
-  Body.setAngularVelocity(birdBody, (Math.random() - 0.5) * 0.2);
-
-  const idx = birds.findIndex((b) => b.body === birdBody);
-  if (idx >= 0) {
-    birds[idx].launched = true;
-    birds[idx].launchTime = Date.now();
   }
 }
 
@@ -326,6 +317,7 @@ function addPig(x: number, y: number, health: number, isBoss: boolean): Matter.B
   return body;
 }
 
+// LEVEL DESIGNS
 function buildAssamHouse(x: number) {
   const baseY = STRUCTURE_BASE_Y;
   
@@ -335,15 +327,17 @@ function buildAssamHouse(x: number) {
   });
   World.add(world, platform);
 
+  // Foundation
   addStableBlock(x - 80, baseY - 20, 35, 25, 'wood', 3);
   addStableBlock(x - 40, baseY - 20, 35, 25, 'wood', 3);
   addStableBlock(x, baseY - 20, 35, 25, 'wood', 3);
   addStableBlock(x + 40, baseY - 20, 35, 25, 'wood', 3);
   addStableBlock(x + 80, baseY - 20, 35, 25, 'wood', 3);
 
+  // Platform
   addStableBlock(x, baseY - 50, 220, 20, 'wood', 2);
 
-  // FIXED: Actually add pigs to the level
+  // Pigs
   addPig(x - 30, baseY - 60, 5, false);
   addPig(x + 30, baseY - 60, 5, false);
   addPig(x, baseY - 100, 5, false);
@@ -357,13 +351,15 @@ function buildTwoStory(x: number) {
   });
   World.add(world, platform);
 
+  // First story
   addStableBlock(x - 120, baseY - 35, 30, 60, 'stone', 5);
   addStableBlock(x + 120, baseY - 35, 30, 60, 'stone', 5);
 
+  // Second story
   addStableBlock(x - 100, baseY - 105, 28, 60, 'stone', 5);
   addStableBlock(x + 100, baseY - 105, 28, 60, 'stone', 5);
 
-  // FIXED: Actually add pigs to the level
+  // Pigs
   addPig(x - 80, baseY - 45, 6, false);
   addPig(x + 80, baseY - 45, 6, false);
   addPig(x, baseY - 185, 6, false);
@@ -377,16 +373,18 @@ function buildThreeStory(x: number) {
   });
   World.add(world, platform);
 
+  // First story
   addStableBlock(x - 140, baseY - 40, 30, 70, 'stone', 6);
   addStableBlock(x + 140, baseY - 40, 30, 70, 'stone', 6);
 
+  // Second story
   addStableBlock(x - 120, baseY - 120, 28, 70, 'stone', 5);
   addStableBlock(x + 120, baseY - 120, 28, 70, 'stone', 5);
 
-  // FIXED: Actually add pigs to the level
+  // Pigs
   addPig(x - 90, baseY - 50, 8, false);
   addPig(x + 90, baseY - 50, 8, false);
-  addPig(x, baseY - 270, 12, true);
+  addPig(x, baseY - 270, 12, true); // Boss pig
 }
 
 function buildFinalLevel(x: number) {
@@ -397,13 +395,14 @@ function buildFinalLevel(x: number) {
   });
   World.add(world, platform);
 
+  // Towers
   addStableBlock(x - 160, baseY - 60, 35, 100, 'stone', 8);
   addStableBlock(x + 160, baseY - 60, 35, 100, 'stone', 8);
 
-  // FIXED: Actually add pigs to the level
+  // Pigs
   addPig(x - 160, baseY - 120, 8, false);
   addPig(x + 160, baseY - 120, 8, false);
-  addPig(x, baseY - 240, 15, true);
+  addPig(x, baseY - 240, 15, true); // Boss pig
 }
 
 let ground: Matter.Body;
@@ -420,13 +419,15 @@ function buildWorld() {
   Composite.clear(world, false);
   birds = [];
   blocks = [];
-  pigs = []; // FIXED: Make sure pigs array is cleared
+  pigs = [];
   currentBirdIndex = 0;
   slingConstraint = null;
   score = 0;
+  dragging = false;
+  advanceTimer = 0;
+
   if (scoreEl) scoreEl.textContent = `Score: ${score}`;
   if (levelEl) levelEl.textContent = `Level: ${currentLevel}`;
-  advanceTimer = 0;
 
   createBackground();
 
@@ -453,27 +454,15 @@ function buildWorld() {
 
   const structureX = WORLD_W - Math.floor(WORLD_W * 0.25);
   
-  console.log(`Building level ${currentLevel} with structure at ${structureX}`);
+  console.log(`Building level ${currentLevel}`);
   
   switch (currentLevel) {
-    case 1: 
-      buildAssamHouse(structureX); 
-      break;
-    case 2: 
-      buildTwoStory(structureX); 
-      break;
-    case 3: 
-      buildThreeStory(structureX); 
-      break;
-    case 4: 
-      buildFinalLevel(structureX); 
-      break;
-    default: 
-      buildAssamHouse(structureX); 
-      break;
+    case 1: buildAssamHouse(structureX); break;
+    case 2: buildTwoStory(structureX); break;
+    case 3: buildThreeStory(structureX); break;
+    case 4: buildFinalLevel(structureX); break;
+    default: buildAssamHouse(structureX); break;
   }
-
-  console.log(`Level ${currentLevel} built with ${pigs.length} pigs`);
 
   const birdTypesList: ('red' | 'blue' | 'yellow')[][] = [
     ['red', 'red', 'red', 'blue', 'yellow'],
@@ -504,12 +493,9 @@ function buildWorld() {
           (bodyB.label === 'pig' && bodyA.label === 'bird')) {
         
         const pigBody = bodyA.label === 'pig' ? bodyA : bodyB;
-        const birdBody = bodyA.label === 'pig' ? bodyB : bodyA;
-        
         const pig = pigs.find(p => p.body === pigBody);
-        const bird = birds.find(b => b.body === birdBody);
         
-        if (pig && bird) {
+        if (pig) {
           pig.health -= 10;
           console.log(`Pig hit! Health: ${pig.health}`);
           
@@ -584,6 +570,7 @@ function clientToWorld(clientX: number, clientY: number) {
   return { x, y };
 }
 
+// FIXED SLINGSHOT CONTROLS
 canvas.addEventListener('pointerdown', (ev) => {
   if (gameState !== 'playing') return;
   const p = clientToWorld(ev.clientX, ev.clientY);
@@ -593,6 +580,7 @@ canvas.addEventListener('pointerdown', (ev) => {
   const d = Math.hypot(p.x - 170, p.y - (WORLD_H - GROUND_HEIGHT - 110));
   if (d < BIRD_RADIUS * 3) {
     dragging = true;
+    dragStart = { x: p.x, y: p.y };
     if (slingConstraint) {
       World.remove(world, slingConstraint);
       slingConstraint = null;
@@ -672,7 +660,7 @@ function renderFrame() {
     ctx.restore();
   }
 
-  // Draw pigs
+  // Draw pigs with friend faces
   for (const pig of pigs) {
     const p = pig.body;
     ctx.save();
@@ -680,14 +668,45 @@ function renderFrame() {
     ctx.rotate(p.angle);
     const r = pig.isBoss ? 40 : 30;
 
-    ctx.fillStyle = pig.isBoss ? '#FF6B6B' : '#81C784';
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.strokeStyle = pig.isBoss ? '#C62828' : '#4CAF50';
-    ctx.lineWidth = 3;
-    ctx.stroke();
+    // Draw appropriate friend face
+    if (imagesLoaded) {
+      let pigImage: HTMLImageElement;
+      
+      if (pig.isBoss) {
+        if (currentLevel === 3) {
+          pigImage = friend3Image;
+        } else if (currentLevel === 4) {
+          pigImage = friend4Image;
+        } else {
+          pigImage = friend2Image;
+        }
+      } else {
+        pigImage = friend2Image;
+      }
+      
+      if (pigImage && pigImage.complete) {
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.drawImage(pigImage, -r, -r, r * 2, r * 2);
+        ctx.restore();
+        ctx.save();
+        ctx.translate(p.position.x, p.position.y);
+        ctx.rotate(p.angle);
+      } else {
+        // Fallback color
+        ctx.fillStyle = pig.isBoss ? '#FF6B6B' : '#81C784';
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else {
+      // Fallback color
+      ctx.fillStyle = pig.isBoss ? '#FF6B6B' : '#81C784';
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     // Health bar
     const healthColor = pig.health > pig.maxHealth * 0.5 ? '#4CAF50' : pig.health > 1 ? '#FF9800' : '#F44336';
@@ -745,7 +764,7 @@ function renderFrame() {
     }
   }
 
-  // Draw birds
+  // Draw birds with friend1 faces
   for (let i = 0; i < birds.length; i++) {
     const br = birds[i];
     const b = br.body;
@@ -754,11 +773,24 @@ function renderFrame() {
     ctx.rotate(b.angle);
     const r = BIRD_RADIUS;
 
-    const fill = br.type === 'red' ? '#DC143C' : (br.type === 'blue' ? '#1E90FF' : '#FFD700');
-    ctx.fillStyle = fill;
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.fill();
+    // Draw friend1 face on bird
+    if (imagesLoaded && friend1Image && friend1Image.complete) {
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(friend1Image, -r, -r, r * 2, r * 2);
+      ctx.restore();
+      ctx.save();
+      ctx.translate(b.position.x, b.position.y);
+      ctx.rotate(b.angle);
+    } else {
+      // Fallback colors
+      const fill = br.type === 'red' ? '#DC143C' : (br.type === 'blue' ? '#1E90FF' : '#FFD700');
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
     if (!br.launched) {
       ctx.strokeStyle = '#8B0000';
@@ -915,25 +947,11 @@ function initializeEventListeners() {
 
 window.addEventListener('resize', () => {
   resizeCanvas();
-  checkOrientation();
   if (gameState === 'playing') buildWorld();
-});
-
-window.addEventListener('orientationchange', () => {
-  setTimeout(() => {
-    checkOrientation();
-    if (gameState === 'playing') {
-      setTimeout(() => {
-        resizeCanvas();
-        buildWorld();
-      }, 100);
-    }
-  }, 100);
 });
 
 // Initial setup
 loadImages();
-checkOrientation();
 resizeCanvas();
 initializeEventListeners();
 showMenu();
