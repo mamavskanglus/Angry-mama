@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Angry Mama</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Menu Screen -->
+  <div id="menuScreen" class="screen">
+    <h1>ANGRY MAMA</h1>
+    <button id="playBtn">
+      <span style="font-size: 2.5rem;">▶</span> PLAY
+    </button>
+    <div class="info">
+      <p>4 Challenging Levels</p>
+      <p>Defeat llegal Bangladeshis and protect Assam!</p>
+    </div>
+  </div>
+
+  <!-- Level Complete Screen -->
+  <div id="levelCompleteScreen" class="screen popup-screen" style="display: none;">
+    <div class="popup-content">
+      <h2 class="success">🎉 CONGRATULATIONS! 🎉</h2>
+      <p id="completeLevel">Level 1 Complete!</p>
+      <p id="finalScore">Score: 0</p>
+      <div class="button-group">
+        <button id="menuFromCompleteBtn" class="btn-secondary">
+          🏠 MENU
+        </button>
+        <button id="nextLevelBtn" class="btn-primary">
+          NEXT ▶
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div id="gameOverScreen" class="screen popup-screen" style="display: none;">
+    <div class="popup-content">
+      <h2 class="failure">GAME OVER</h2>
+      <p id="gameOverScore">Score: 0 | Level: 1</p>
+      <div class="button-group">
+        <button id="menuFromGameOverBtn" class="btn-secondary">
+          🏠 MENU
+        </button>
+        <button id="retryBtn" class="btn-retry">
+          🔄 RETRY
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game Completion Screen -->
+  <div id="gameCompletionScreen" class="screen popup-screen" style="display: none;">
+    <div class="popup-content">
+      <h2 class="success">🎉 WELL DONE!!! 🎉</h2>
+      <p>You have completed all levels!</p>
+      <p id="finalGameScore">Final Score: 0</p>
+      <div class="button-group">
+        <button id="menuFromCompletionBtn" class="btn-secondary">
+          🏠 MENU
+        </button>
+        <button id="playAgainBtn" class="btn-primary">
+          PLAY AGAIN
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game UI -->
+  <div id="gameUI">
+    <div id="level">Level: 1</div>
+    <div id="score">Score: 0</div>
+  </div>
+
+  <!-- Mute Button -->
+  <button id="muteBtn">🔊</button>
+
+  <!-- Game Canvas -->
+  <canvas id="gameCanvas"></canvas>
+
+  <script type="module" src="src/main.ts"></script>
+</body>
+</html>

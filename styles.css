@@ -1,0 +1,284 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Arial', sans-serif;
+  overflow: hidden;
+  background: linear-gradient(to bottom, #87CEEB, #E0F6FF);
+}
+
+#gameCanvas {
+  display: block;
+  cursor: crosshair;
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+#menuScreen {
+  background: linear-gradient(135deg, #ff9a56, #ff3b30, #ff006e);
+  flex-direction: column;
+  gap: 2rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+#menuScreen h1 {
+  font-size: 6rem;
+  font-weight: bold;
+  color: white;
+  text-shadow: 4px 4px 0px rgba(0,0,0,0.3), 8px 8px 0px rgba(0,0,0,0.2);
+  animation: bounce 2s infinite;
+}
+
+#menuScreen p {
+  font-size: 2rem;
+  color: white;
+  font-weight: 600;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+#menuScreen .info {
+  font-size: 1.2rem;
+  color: rgba(255,255,255,0.9);
+  margin-top: 1rem;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+.popup-screen {
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(10px);
+}
+
+.popup-content {
+  background: white;
+  border-radius: 2rem;
+  padding: 2.5rem;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  text-align: center;
+  max-width: 500px;
+  width: 90%;
+  margin: 1rem;
+  animation: popIn 0.3s ease-out;
+  overflow: hidden;
+}
+
+@keyframes popIn {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.popup-content h2 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  word-wrap: break-word;
+  line-height: 1.2;
+  padding: 0 1rem;
+}
+
+.popup-content .success {
+  color: #00cc00;
+  font-size: 2.2rem;
+}
+
+.popup-content .failure {
+  color: #ff3b30;
+}
+
+.popup-content p {
+  font-size: 1.5rem;
+  color: #333;
+  margin: 0.5rem 0;
+}
+
+#completeLevel {
+  font-size: 1.8rem !important;
+  font-weight: bold;
+  line-height: 1.3;
+  margin: 0.5rem 0;
+  padding: 0 0.5rem;
+}
+
+.button-group {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+button {
+  font-size: 1.5rem;
+  font-weight: bold;
+  padding: 1rem 2.5rem;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+#playBtn {
+  background: white;
+  color: #333;
+  font-size: 2rem;
+  padding: 1.5rem 4rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+#playBtn:hover {
+  background: #ffd200;
+}
+
+.btn-primary {
+  background: #00cc00;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #00aa00;
+}
+
+.btn-secondary {
+  background: #666;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #444;
+}
+
+.btn-retry {
+  background: #007bff;
+  color: white;
+}
+
+.btn-retry:hover {
+  background: #0056b3;
+}
+
+#gameUI {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255,255,255,0.9);
+  padding: 1rem 1.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  z-index: 50;
+  display: none;
+}
+
+#gameUI div {
+  font-size: 1.2rem;
+  font-weight: bold;
+  color: #333;
+  margin: 0.25rem 0;
+}
+
+#muteBtn {
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.9);
+  font-size: 1.8rem;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  padding: 0;
+}
+
+#muteBtn:hover {
+  background: white;
+}
+
+@media (max-width: 768px) {
+  #menuScreen h1 {
+    font-size: 3rem;
+  }
+
+  #menuScreen p {
+    font-size: 1.2rem;
+  }
+
+  #playBtn {
+    font-size: 1.5rem;
+    padding: 1rem 2.5rem;
+  }
+
+  .popup-content {
+    padding: 2rem;
+  }
+
+  .popup-content h2 {
+    font-size: 1.8rem;
+  }
+  
+  .popup-content .success {
+    font-size: 1.6rem;
+  }
+
+  .popup-content p {
+    font-size: 1.2rem;
+  }
+  
+  #completeLevel {
+    font-size: 1.4rem !important;
+  }
+
+  button {
+    font-size: 1.2rem;
+    padding: 0.8rem 1.5rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .popup-content h2 {
+    font-size: 1.5rem;
+  }
+  
+  .popup-content .success {
+    font-size: 1.3rem;
+  }
+  
+  #completeLevel {
+    font-size: 1.2rem !important;
+  }
+  
+  .popup-content {
+    padding: 1.5rem;
+  }
+}

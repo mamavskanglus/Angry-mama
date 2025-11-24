@@ -1,0 +1,291 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: linear-gradient(#87ceeb, #e0f6ff);
+  font-family: Arial, sans-serif;
+  overflow: hidden;
+}
+
+#gameCanvas {
+  cursor: crosshair;
+  display: block;
+}
+
+.screen {
+  z-index: 100;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  position: absolute;
+  inset: 0;
+}
+
+#menuScreen {
+  text-align: center;
+  background: linear-gradient(135deg, #ff9a56, #ff3b30, #ff006e);
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem;
+}
+
+#menuScreen h1 {
+  color: #fff;
+  text-shadow: 4px 4px #0000004d, 8px 8px #0003;
+  font-size: 6rem;
+  font-weight: bold;
+  animation: 2s infinite bounce;
+}
+
+#menuScreen p {
+  color: #fff;
+  text-shadow: 2px 2px 4px #0000004d;
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+#menuScreen .info {
+  color: #ffffffe6;
+  margin-top: 1rem;
+  font-size: 1.2rem;
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+.popup-screen {
+  backdrop-filter: blur(10px);
+  background: #000000b3;
+}
+
+.popup-content {
+  text-align: center;
+  background: #fff;
+  border-radius: 2rem;
+  width: 90%;
+  max-width: 500px;
+  margin: 1rem;
+  padding: 2.5rem;
+  animation: .3s ease-out popIn;
+  overflow: hidden;
+  box-shadow: 0 20px 60px #00000080;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(.8);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.popup-content h2 {
+  word-wrap: break-word;
+  margin-bottom: 1rem;
+  padding: 0 1rem;
+  font-size: 2.5rem;
+  line-height: 1.2;
+}
+
+.popup-content .success {
+  color: #0c0;
+  font-size: 2.2rem;
+}
+
+.popup-content .failure {
+  color: #ff3b30;
+}
+
+.popup-content p {
+  color: #333;
+  margin: .5rem 0;
+  font-size: 1.5rem;
+}
+
+#completeLevel {
+  margin: .5rem 0;
+  padding: 0 .5rem;
+  font-weight: bold;
+  line-height: 1.3;
+  font-size: 1.8rem !important;
+}
+
+.button-group {
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 2rem;
+  display: flex;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  border-radius: 50px;
+  padding: 1rem 2.5rem;
+  font-size: 1.5rem;
+  font-weight: bold;
+  transition: all .2s;
+  box-shadow: 0 4px 12px #0003;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px #0000004d;
+}
+
+button:active {
+  transform: translateY(0);
+}
+
+#playBtn {
+  color: #333;
+  background: #fff;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.5rem 4rem;
+  font-size: 2rem;
+  display: flex;
+}
+
+#playBtn:hover {
+  background: #ffd200;
+}
+
+.btn-primary {
+  color: #fff;
+  background: #0c0;
+}
+
+.btn-primary:hover {
+  background: #0a0;
+}
+
+.btn-secondary {
+  color: #fff;
+  background: #666;
+}
+
+.btn-secondary:hover {
+  background: #444;
+}
+
+.btn-retry {
+  color: #fff;
+  background: #007bff;
+}
+
+.btn-retry:hover {
+  background: #0056b3;
+}
+
+#gameUI {
+  z-index: 50;
+  background: #ffffffe6;
+  border-radius: 1rem;
+  padding: 1rem 1.5rem;
+  display: none;
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  box-shadow: 0 4px 12px #0003;
+}
+
+#gameUI div {
+  color: #333;
+  margin: .25rem 0;
+  font-size: 1.2rem;
+  font-weight: bold;
+}
+
+#muteBtn {
+  z-index: 50;
+  background: #ffffffe6;
+  border-radius: 50%;
+  justify-content: center;
+  align-items: center;
+  width: 60px;
+  height: 60px;
+  padding: 0;
+  font-size: 1.8rem;
+  display: none;
+  position: absolute;
+  top: 1rem;
+  left: 1rem;
+}
+
+#muteBtn:hover {
+  background: #fff;
+}
+
+@media (width <= 768px) {
+  #menuScreen h1 {
+    font-size: 3rem;
+  }
+
+  #menuScreen p {
+    font-size: 1.2rem;
+  }
+
+  #playBtn {
+    padding: 1rem 2.5rem;
+    font-size: 1.5rem;
+  }
+
+  .popup-content {
+    padding: 2rem;
+  }
+
+  .popup-content h2 {
+    font-size: 1.8rem;
+  }
+
+  .popup-content .success {
+    font-size: 1.6rem;
+  }
+
+  .popup-content p {
+    font-size: 1.2rem;
+  }
+
+  #completeLevel {
+    font-size: 1.4rem !important;
+  }
+
+  button {
+    padding: .8rem 1.5rem;
+    font-size: 1.2rem;
+  }
+}
+
+@media (width <= 480px) {
+  .popup-content h2 {
+    font-size: 1.5rem;
+  }
+
+  .popup-content .success {
+    font-size: 1.3rem;
+  }
+
+  #completeLevel {
+    font-size: 1.2rem !important;
+  }
+
+  .popup-content {
+    padding: 1.5rem;
+  }
+}
+/*# sourceMappingURL=angry-birds-clone.1303bb05.css.map */
