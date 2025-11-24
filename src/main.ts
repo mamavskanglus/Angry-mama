@@ -1,23 +1,22 @@
 // src/main.ts
 import * as Matter from 'matter-js';
-
-// Initialize Matter.js first
+// Import images as modules
 const { Engine, World, Bodies, Body, Runner, Events, Constraint, Composite } = Matter;
 
-// Game state variables
+
 let gameState: 'menu' | 'playing' | 'levelComplete' | 'gameOver' = 'menu';
 let currentLevel = 1;
 let globalScore = 0;
 let isMuted = false;
 
-// Audio elements
+// Audio elements - UPDATED FOR BETTER MANAGEMENT
 let bgMusic: HTMLAudioElement | null = null;
 let currentBgMusic: string | null = null;
 let victorySound: HTMLAudioElement | null = null;
 let defeatSound: HTMLAudioElement | null = null;
 let isPlayingVictoryOrDefeat = false;
 
-// Audio file paths
+// Audio file paths - UPDATED FOR PARCEL
 const AUDIO_PATHS = {
   level1: new URL('./assets/audio/level1-bg.mp3', import.meta.url).href,
   level2: new URL('./assets/audio/level2-bg.mp3', import.meta.url).href,
@@ -27,7 +26,6 @@ const AUDIO_PATHS = {
   defeat: new URL('./assets/audio/defeat.mp3', import.meta.url).href
 };
 
-// DOM elements
 const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
 const menuScreen = document.getElementById('menuScreen') as HTMLDivElement;
 const gameUI = document.getElementById('gameUI') as HTMLDivElement;
@@ -49,7 +47,7 @@ const ctx = canvas.getContext('2d')!;
 const engine = Engine.create();
 const world = engine.world;
 
-// Physics settings
+// FIXED: Reduced bounciness and improved physics for less bouncing
 world.gravity.y = 1;
 engine.timing.timeScale = 0.9;
 
@@ -65,9 +63,198 @@ let friend3Image: HTMLImageElement;
 let friend4Image: HTMLImageElement;
 let imagesLoaded = false;
 
-// Game objects
+// Initialize all audio elements
+function initializeAudio() {
+  // We'll create audio elements on-demand
+  victorySound = null;
+  defeatSound = null;
+}
+
+// Create and play audio with better error handling
+function createAndPlayAudio(src: string, volume: number = 0.7, loop: boolean = false): HTMLAudioElement | null {
+  if (isMuted) return null;
+  
+  try {
+    const audio = new Audio(src);
+    audio.volume = volume;
+    audio.loop = loop;
+    
+    // Add error handling for the audio element
+    audio.addEventListener('error', (e) => {
+      console.log('Audio element error:', e, 'Src:', src);
+    });
+    
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.log('Audio play failed:', error, 'Src:', src);
+        // Don't throw error, just log it
+      });
+    }
+    
+    return audio;
+  } catch (error) {
+    console.log('Audio creation failed:', error, 'Src:', src);
+    return null;
+  }
+}
+
+// Stop background music
+function stopBackgroundMusic() {
+  if (bgMusic) {
+    bgMusic.pause();
+    bgMusic.currentTime = 0;
+    bgMusic = null;
+    currentBgMusic = null;
+  }
+}
+
+// Play background music for current level
+function playLevelMusic() {
+  // Don't play level music if we're currently playing victory/defeat sounds
+  if (isPlayingVictoryOrDefeat) return;
+  
+  // Stop current music if playing
+  stopBackgroundMusic();
+  
+  let musicPath = '';
+  switch(currentLevel) {
+    case 1: musicPath = AUDIO_PATHS.level1; break;
+    case 2: musicPath = AUDIO_PATHS.level2; break;
+    case 3: musicPath = AUDIO_PATHS.level3; break;
+    case 4: musicPath = AUDIO_PATHS.level4; break;
+    default: musicPath = AUDIO_PATHS.level1;
+  }
+  
+  if (musicPath && !isMuted) {
+    console.log('Playing level music:', musicPath);
+    bgMusic = createAndPlayAudio(musicPath, 0.5, true);
+    currentBgMusic = musicPath;
+  }
+}
+
+// Play victory sound
+function playVictorySound() {
+  if (isMuted) return;
+  
+  console.log('Playing victory sound');
+  
+  // Stop background music
+  stopBackgroundMusic();
+  
+  // Set flag to prevent level music from starting
+  isPlayingVictoryOrDefeat = true;
+  
+  // Clean up any existing victory sound
+  if (victorySound) {
+    victorySound.pause();
+    victorySound = null;
+  }
+  
+  // Create and play victory sound
+  victorySound = createAndPlayAudio(AUDIO_PATHS.victory, 0.7, false);
+  
+  // Reset flag when victory sound ends
+  if (victorySound) {
+    victorySound.addEventListener('ended', () => {
+      console.log('Victory sound ended');
+      isPlayingVictoryOrDefeat = false;
+      victorySound = null;
+    });
+    
+    // Also reset flag if there's an error
+    victorySound.addEventListener('error', () => {
+      console.log('Victory sound error');
+      isPlayingVictoryOrDefeat = false;
+      victorySound = null;
+    });
+  } else {
+    // If sound creation failed, reset flag immediately
+    isPlayingVictoryOrDefeat = false;
+  }
+}
+
+// Play defeat sound  
+function playDefeatSound() {
+  if (isMuted) return;
+  
+  console.log('Playing defeat sound');
+  
+  // Stop background music
+  stopBackgroundMusic();
+  
+  // Set flag to prevent level music from starting
+  isPlayingVictoryOrDefeat = true;
+  
+  // Clean up any existing defeat sound
+  if (defeatSound) {
+    defeatSound.pause();
+    defeatSound = null;
+  }
+  
+  // Create and play defeat sound
+  defeatSound = createAndPlayAudio(AUDIO_PATHS.defeat, 0.7, false);
+  
+  // Reset flag when defeat sound ends
+  if (defeatSound) {
+    defeatSound.addEventListener('ended', () => {
+      console.log('Defeat sound ended');
+      isPlayingVictoryOrDefeat = false;
+      defeatSound = null;
+    });
+    
+    // Also reset flag if there's an error
+    defeatSound.addEventListener('error', () => {
+      console.log('Defeat sound error');
+      isPlayingVictoryOrDefeat = false;
+      defeatSound = null;
+    });
+  } else {
+    // If sound creation failed, reset flag immediately
+    isPlayingVictoryOrDefeat = false;
+  }
+}
+
+// Update mute functionality
+function updateMuteState() {
+  isMuted = !isMuted;
+  muteBtn.innerHTML = isMuted ? '🔇' : '🔊';
+  
+  if (isMuted) {
+    stopBackgroundMusic();
+    if (victorySound) {
+      victorySound.pause();
+      victorySound.volume = 0;
+    }
+    if (defeatSound) {
+      defeatSound.pause();
+      defeatSound.volume = 0;
+    }
+  } else {
+    // Unmute - restart level music if in playing state and not playing victory/defeat
+    if (gameState === 'playing' && !isPlayingVictoryOrDefeat) {
+      playLevelMusic();
+    }
+    if (victorySound) victorySound.volume = 0.7;
+    if (defeatSound) defeatSound.volume = 0.7;
+  }
+}
+
+function resizeCanvas() {
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const w = Math.max(320, window.innerWidth);
+  const h = Math.max(480, window.innerHeight);
+  canvas.style.width = `${w}px`;
+  canvas.style.height = `${h}px`;
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+resizeCanvas();
+
 let WORLD_W = window.innerWidth;
 let WORLD_H = window.innerHeight;
+// KEEP BIRD SIZE AT 25 (good size)
 let BIRD_RADIUS = 25;
 let STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
 
@@ -105,210 +292,13 @@ let score = 0;
 let dragging = false;
 let advanceTimer = 0;
 
+// LAG FIX: Reduced particle count
 const MAX_PARTICLES = 20;
 let activeParticles: Matter.Body[] = [];
 
 let clouds: { x: number; y: number; size: number; speed: number }[] = [];
-let ground: Matter.Body;
-let leftWall: Matter.Body;
-let rightWall: Matter.Body;
-let slingAnchor = { x: 170, y: 0 };
 
-// Initialize all audio elements
-function initializeAudio(): void {
-  victorySound = null;
-  defeatSound = null;
-}
-
-// Create and play audio with better error handling
-function createAndPlayAudio(src: string, volume: number = 0.7, loop: boolean = false): HTMLAudioElement | null {
-  if (isMuted) return null;
-  
-  try {
-    const audio = new Audio(src);
-    audio.volume = volume;
-    audio.loop = loop;
-    
-    audio.addEventListener('error', (e) => {
-      console.log('Audio element error:', e, 'Src:', src);
-    });
-    
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        console.log('Audio play failed:', error, 'Src:', src);
-      });
-    }
-    
-    return audio;
-  } catch (error) {
-    console.log('Audio creation failed:', error, 'Src:', src);
-    return null;
-  }
-}
-
-// Stop background music
-function stopBackgroundMusic(): void {
-  if (bgMusic) {
-    bgMusic.pause();
-    bgMusic.currentTime = 0;
-    bgMusic = null;
-    currentBgMusic = null;
-  }
-}
-
-// Play background music for current level
-function playLevelMusic(): void {
-  if (isPlayingVictoryOrDefeat) return;
-  
-  stopBackgroundMusic();
-  
-  let musicPath = '';
-  switch(currentLevel) {
-    case 1: musicPath = AUDIO_PATHS.level1; break;
-    case 2: musicPath = AUDIO_PATHS.level2; break;
-    case 3: musicPath = AUDIO_PATHS.level3; break;
-    case 4: musicPath = AUDIO_PATHS.level4; break;
-    default: musicPath = AUDIO_PATHS.level1;
-  }
-  
-  if (musicPath && !isMuted) {
-    console.log('Playing level music:', musicPath);
-    bgMusic = createAndPlayAudio(musicPath, 0.5, true);
-    currentBgMusic = musicPath;
-  }
-}
-
-// Play victory sound
-function playVictorySound(): void {
-  if (isMuted) return;
-  
-  console.log('Playing victory sound');
-  stopBackgroundMusic();
-  isPlayingVictoryOrDefeat = true;
-  
-  if (victorySound) {
-    victorySound.pause();
-    victorySound = null;
-  }
-  
-  victorySound = createAndPlayAudio(AUDIO_PATHS.victory, 0.7, false);
-  
-  if (victorySound) {
-    victorySound.addEventListener('ended', () => {
-      console.log('Victory sound ended');
-      isPlayingVictoryOrDefeat = false;
-      victorySound = null;
-    });
-    
-    victorySound.addEventListener('error', () => {
-      console.log('Victory sound error');
-      isPlayingVictoryOrDefeat = false;
-      victorySound = null;
-    });
-  } else {
-    isPlayingVictoryOrDefeat = false;
-  }
-}
-
-// Play defeat sound  
-function playDefeatSound(): void {
-  if (isMuted) return;
-  
-  console.log('Playing defeat sound');
-  stopBackgroundMusic();
-  isPlayingVictoryOrDefeat = true;
-  
-  if (defeatSound) {
-    defeatSound.pause();
-    defeatSound = null;
-  }
-  
-  defeatSound = createAndPlayAudio(AUDIO_PATHS.defeat, 0.7, false);
-  
-  if (defeatSound) {
-    defeatSound.addEventListener('ended', () => {
-      console.log('Defeat sound ended');
-      isPlayingVictoryOrDefeat = false;
-      defeatSound = null;
-    });
-    
-    defeatSound.addEventListener('error', () => {
-      console.log('Defeat sound error');
-      isPlayingVictoryOrDefeat = false;
-      defeatSound = null;
-    });
-  } else {
-    isPlayingVictoryOrDefeat = false;
-  }
-}
-
-// Update mute functionality
-function updateMuteState(): void {
-  isMuted = !isMuted;
-  muteBtn.innerHTML = isMuted ? '🔇' : '🔊';
-  
-  if (isMuted) {
-    stopBackgroundMusic();
-    if (victorySound) {
-      victorySound.pause();
-      victorySound.volume = 0;
-    }
-    if (defeatSound) {
-      defeatSound.pause();
-      defeatSound.volume = 0;
-    }
-  } else {
-    if (gameState === 'playing' && !isPlayingVictoryOrDefeat) {
-      playLevelMusic();
-    }
-    if (victorySound) victorySound.volume = 0.7;
-    if (defeatSound) defeatSound.volume = 0.7;
-  }
-}
-
-function setupMobileScaling(): void {
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  
-  if (isMobile) {
-    WORLD_W = window.innerWidth;
-    WORLD_H = window.innerHeight;
-    
-    console.log(`Mobile detected: ${WORLD_W}x${WORLD_H}`);
-    
-    BIRD_RADIUS = Math.max(15, Math.min(20, Math.floor(Math.min(WORLD_W, WORLD_H) * 0.04)));
-    slingAnchor.x = Math.max(100, Math.floor(WORLD_W * 0.15));
-    slingAnchor.y = WORLD_H - GROUND_HEIGHT - 80;
-    
-    console.log(`Mobile settings: Bird radius ${BIRD_RADIUS}, Sling at ${slingAnchor.x},${slingAnchor.y}`);
-  }
-}
-
-function resizeCanvas(): void {
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  
-  if (isMobile && window.innerHeight > window.innerWidth) {
-    return;
-  }
-  
-  const w = isMobile ? window.innerWidth : Math.max(320, window.innerWidth);
-  const h = isMobile ? window.innerHeight : Math.max(480, window.innerHeight);
-  
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  canvas.width = Math.floor(w * dpr);
-  canvas.height = Math.floor(h * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  
-  WORLD_W = w;
-  WORLD_H = h;
-  STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  
-  setupMobileScaling();
-}
-
-// FIXED IMAGE LOADING
+// FIXED IMAGE LOADING - Using imported paths
 function loadImages(): Promise<boolean> {
   return new Promise((resolve) => {
     let imagesToLoad = 4;
@@ -349,15 +339,25 @@ function loadImages(): Promise<boolean> {
     friend3Image.onerror = () => onImageError('friend3-face.png');
     friend4Image.onerror = () => onImageError('friend4-face.png');
 
-    // Use relative paths to avoid import.meta.url issues
-    friend1Image.src = './assets/friend1-face.png';
-    friend2Image.src = './assets/friend2-face.png';
-    friend3Image.src = './assets/friend3-face.png';
-    friend4Image.src = './assets/friend4-face.png';
+    // Try using new URL with import.meta.url
+    try {
+      friend1Image.src = new URL('./assets/friend1-face.png', import.meta.url).href;
+      friend2Image.src = new URL('./assets/friend2-face.png', import.meta.url).href;
+      friend3Image.src = new URL('./assets/friend3-face.png', import.meta.url).href;
+      friend4Image.src = new URL('./assets/friend4-face.png', import.meta.url).href;
+      console.log('🔍 Trying to load images with import.meta.url');
+    } catch (e) {
+      console.error('import.meta.url failed, trying relative paths', e);
+      // Fallback to relative paths
+      friend1Image.src = './assets/friend1-face.png';
+      friend2Image.src = './assets/friend2-face.png';
+      friend3Image.src = './assets/friend3-face.png';
+      friend4Image.src = './assets/friend4-face.png';
+    }
   });
 }
 
-function createBackground(): void {
+function createBackground() {
   clouds = [];
   for (let i = 0; i < 6; i++) {
     clouds.push({
@@ -369,7 +369,7 @@ function createBackground(): void {
   }
 }
 
-function updateBackground(): void {
+function updateBackground() {
   for (const cloud of clouds) {
     cloud.x += cloud.speed;
     if (cloud.x > WORLD_W + cloud.size) {
@@ -379,7 +379,7 @@ function updateBackground(): void {
   }
 }
 
-function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, size: number): void {
+function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, size: number) {
   ctx.fillStyle = 'rgba(255,255,255,0.9)';
   ctx.beginPath();
   ctx.arc(x, y, size * 0.5, 0, Math.PI * 2);
@@ -388,7 +388,7 @@ function drawCloud(ctx: CanvasRenderingContext2D, x: number, y: number, size: nu
   ctx.fill();
 }
 
-function drawGrass(ctx: CanvasRenderingContext2D): void {
+function drawGrass(ctx: CanvasRenderingContext2D) {
   const baseY = WORLD_H - GROUND_HEIGHT + 5;
   ctx.strokeStyle = '#2daa2d';
   ctx.lineWidth = 2;
@@ -405,17 +405,16 @@ function drawGrass(ctx: CanvasRenderingContext2D): void {
   }
 }
 
-function addScore(n: number): void {
+function addScore(n: number) {
   score += n;
   globalScore += n;
   if (scoreEl) scoreEl.textContent = `Score: ${score}`;
 }
 
-function spawnBirds(types: ('red' | 'blue' | 'yellow')[]): void {
-  // Clear existing birds
-  birds.forEach(bird => {
-    try { World.remove(world, bird.body); } catch (e) {}
-  });
+function spawnBirds(types: ('red' | 'blue' | 'yellow')[]) {
+  for (const b of birds) {
+    try { World.remove(world, b.body); } catch (e) {}
+  }
   birds = [];
 
   const startX = slingAnchor.x - 100;
@@ -424,12 +423,14 @@ function spawnBirds(types: ('red' | 'blue' | 'yellow')[]): void {
   for (let i = 0; i < types.length; i++) {
     const x = startX - (i * (BIRD_RADIUS * 2.8));
     const y = startY;
+    
+    // FIXED: Reduced bounciness and increased friction for less bouncing
     const body = Bodies.circle(x, y, BIRD_RADIUS, {
       label: 'bird',
-      restitution: 0.3,
-      friction: 0.8,
+      restitution: 0.3, // Reduced from 0.6 to 0.3 (less bouncy)
+      friction: 0.8,    // Increased from 0.4 to 0.8 (more friction)
+      frictionAir: 0.01, // Reduced from 0.005 (birds fly further)
       density: 0.003,
-      frictionAir: 0.01,
       collisionFilter: { group: -1 }
     });
     World.add(world, body);
@@ -438,7 +439,7 @@ function spawnBirds(types: ('red' | 'blue' | 'yellow')[]): void {
   }
 }
 
-function attachBirdToSling(index: number): void {
+function attachBirdToSling(index: number) {
   if (index < 0 || index >= birds.length) return;
   currentBirdIndex = index;
   const birdObj = birds[index];
@@ -462,11 +463,13 @@ function attachBirdToSling(index: number): void {
     render: { visible: false }
   } as any);
   
+  // FIX: Use Composite.add instead of World.add for constraints
   Composite.add(world, slingConstraint);
+  
   birdObj.launched = false;
 }
 
-function releaseBirdFromSling(): void {
+function releaseBirdFromSling() {
   if (!slingConstraint) return;
   const birdBody = slingConstraint.bodyB as Matter.Body;
   const dx = slingAnchor.x - birdBody.position.x;
@@ -511,11 +514,12 @@ function addStableBlock(x: number, y: number, w: number, h: number, type: Block[
     clay: 0.0025
   };
 
+  // FIXED: Reduced bounciness for blocks
   const body = Bodies.rectangle(x, y, w, h, {
     label: 'block',
     isStatic: true,
-    friction: 0.8,
-    restitution: 0.2,
+    friction: 0.8,      // Increased friction
+    restitution: 0.2,   // Reduced bounciness
     density: densities[type],
     collisionFilter: { group: 0 }
   });
@@ -534,11 +538,12 @@ function addStableBlock(x: number, y: number, w: number, h: number, type: Block[
   return body;
 }
 
-function makeBlockDynamic(block: Block): void {
+function makeBlockDynamic(block: Block) {
   if (!block.isStatic) return;
   Body.setStatic(block.body, false);
   block.isStatic = false;
   
+  // FIXED: Keep the reduced bounciness when making dynamic
   Body.set(block.body, {
     restitution: 0.2,
     friction: 0.8
@@ -550,12 +555,15 @@ function makeBlockDynamic(block: Block): void {
   });
 }
 
+// SIGNIFICANTLY INCREASED PIG SIZES: regular pigs from 20 to 50, boss pigs from 25 to 60
 function addPig(x: number, y: number, health: number, isBoss: boolean): Matter.Body {
   const radius = isBoss ? 60 : 50;
+  
+  // FIXED: Reduced bounciness for pigs
   const body = Bodies.circle(x, y, radius, {
     label: 'pig',
-    restitution: 0.2,
-    friction: 0.8,
+    restitution: 0.2,   // Reduced from 0.4 to 0.2
+    friction: 0.8,      // Increased from 0.6 to 0.8
     density: 0.0025,
     collisionFilter: { group: 0 },
     isStatic: false
@@ -566,6 +574,7 @@ function addPig(x: number, y: number, health: number, isBoss: boolean): Matter.B
   return body;
 }
 
+// REAL ANGRY BIRDS DAMAGE: Much more sensitive
 function calculateDamage(impactSpeed: number, birdType: string, blockType: string): number {
   let damage = impactSpeed * 1.2;
   
@@ -592,7 +601,7 @@ function calculateDamage(impactSpeed: number, birdType: string, blockType: strin
   return Math.max(1.0, damage);
 }
 
-function addCrackToBlock(block: Block, impactPoint: Matter.Vector): void {
+function addCrackToBlock(block: Block, impactPoint: Matter.Vector) {
   if (block.cracks.length < 6) {
     const relativeX = (impactPoint.x - block.body.position.x) / ((block.body.bounds.max.x - block.body.bounds.min.x) / 2);
     const relativeY = (impactPoint.y - block.body.position.y) / ((block.body.bounds.max.y - block.body.bounds.min.y) / 2);
@@ -606,7 +615,7 @@ function addCrackToBlock(block: Block, impactPoint: Matter.Vector): void {
   }
 }
 
-function updateBlockDamageState(block: Block): void {
+function updateBlockDamageState(block: Block) {
   const healthRatio = block.health / block.maxHealth;
   
   if (healthRatio > 0.7) {
@@ -620,7 +629,8 @@ function updateBlockDamageState(block: Block): void {
   }
 }
 
-function handleCollision(event: Matter.IEventCollision<Matter.Engine>): void {
+// LAG FIX: Optimized collision handling
+function handleCollision(event: Matter.IEventCollision<Matter.Engine>) {
   const pairs = event.pairs;
   
   for (const pair of pairs) {
@@ -639,7 +649,7 @@ function handleCollision(event: Matter.IEventCollision<Matter.Engine>): void {
     const relV = { x: bodyA.velocity.x - bodyB.velocity.x, y: bodyA.velocity.y - bodyB.velocity.y };
     const impactSpeed = Math.hypot(relV.x, relV.y);
 
-    // Bird vs Block collisions
+    // REAL ANGRY BIRDS: Blocks take damage from any impact
     if ((bodyA.label === 'block' && bodyB.label === 'bird') || 
         (bodyB.label === 'block' && bodyA.label === 'bird')) {
       
@@ -649,17 +659,21 @@ function handleCollision(event: Matter.IEventCollision<Matter.Engine>): void {
       const bird = birds.find(b => b.body === birdBody);
       
       if (block && bird) {
+        // Make block dynamic immediately (Angry Birds style)
         if (block.isStatic) {
           makeBlockDynamic(block);
         }
         
+        // Damage on any impact
         const damage = calculateDamage(Math.max(impactSpeed, 2), bird.type, block.type);
+        
         block.health -= damage;
         updateBlockDamageState(block);
         
         const collisionPoint = (pair as any).collision?.supports?.[0] || blockBody.position;
         if (damage > 0.5) {
           addCrackToBlock(block, collisionPoint);
+          createDamageEffect(collisionPoint.x, collisionPoint.y, damage, block.type);
         }
         
         if (block.health <= 0) {
@@ -667,6 +681,7 @@ function handleCollision(event: Matter.IEventCollision<Matter.Engine>): void {
             World.remove(world, block.body);
             blocks = blocks.filter(b => b !== block);
             addScore(50);
+            createDestructionEffect(blockBody.position.x, blockBody.position.y, block.type);
           } catch (e) {}
         }
       }
@@ -685,13 +700,16 @@ function handleCollision(event: Matter.IEventCollision<Matter.Engine>): void {
       if (pig && block && !block.isStatic && impactSpeed > 2) {
         const blockMass = blockBody.mass || 1;
         const damage = (impactSpeed * blockMass) / 8;
+        
         pig.health -= damage;
+        createDamageEffect(pigBody.position.x, pigBody.position.y, damage, 'flesh');
         
         if (pig.health <= 0) {
           try {
             World.remove(world, pig.body);
             pigs = pigs.filter(p => p !== pig);
             addScore(pig.isBoss ? 300 : 150);
+            createPigDeathEffect(pig.body.position.x, pig.body.position.y, pig.isBoss);
           } catch (e) {}
         }
       }
@@ -719,12 +737,14 @@ function handleCollision(event: Matter.IEventCollision<Matter.Engine>): void {
         }
         
         pig.health -= damage;
+        createDamageEffect(pigBody.position.x, pigBody.position.y, damage, 'flesh');
         
         if (pig.health <= 0) {
           try {
             World.remove(world, pig.body);
             pigs = pigs.filter(p => p !== pig);
             addScore(pig.isBoss ? 300 : 150);
+            createPigDeathEffect(pig.body.position.x, pig.body.position.y, pig.isBoss);
           } catch (e) {}
         }
       }
@@ -753,7 +773,8 @@ function handleCollision(event: Matter.IEventCollision<Matter.Engine>): void {
   }
 }
 
-function createDamageEffect(x: number, y: number, intensity: number, material: string): void {
+// LAG FIX: Reduced particle effects
+function createDamageEffect(x: number, y: number, intensity: number, material: string) {
   const particleCount = Math.min(Math.floor(intensity * 2), 6);
   
   for (let i = 0; i < particleCount; i++) {
@@ -792,7 +813,7 @@ function createDamageEffect(x: number, y: number, intensity: number, material: s
   }
 }
 
-function createDestructionEffect(x: number, y: number, blockType: Block['type']): void {
+function createDestructionEffect(x: number, y: number, blockType: Block['type']) {
   const particleCount = 8;
   
   for (let i = 0; i < particleCount; i++) {
@@ -827,7 +848,7 @@ function createDestructionEffect(x: number, y: number, blockType: Block['type'])
   }
 }
 
-function createPigDeathEffect(x: number, y: number, isBoss: boolean): void {
+function createPigDeathEffect(x: number, y: number, isBoss: boolean) {
   const particleCount = isBoss ? 10 : 6;
   
   for (let i = 0; i < particleCount; i++) {
@@ -875,7 +896,8 @@ function getBlockColor(type: Block['type']): string {
   }
 }
 
-function drawOriginalPig(pig: Pig, r: number): void {
+// Helper function for original pig rendering (fallback)
+function drawOriginalPig(pig: Pig, r: number) {
   ctx.fillStyle = pig.isBoss ? '#FF6B6B' : '#81C784';
   ctx.beginPath();
   ctx.arc(0, 0, r, 0, Math.PI * 2);
@@ -925,9 +947,11 @@ function drawOriginalPig(pig: Pig, r: number): void {
   }
 }
 
-function buildAssamHouse(x: number): void {
+// REAL ANGRY BIRDS: Low health values for easy destruction
+function buildAssamHouse(x: number) {
   const baseY = STRUCTURE_BASE_Y;
   
+  // Increased platform width to accommodate larger pigs
   const platform = Bodies.rectangle(x, baseY, 450, 30, {
     isStatic: true, 
     label: 'platform', 
@@ -936,6 +960,7 @@ function buildAssamHouse(x: number): void {
   });
   World.add(world, platform);
 
+  // Increased spacing between blocks for larger pigs
   addStableBlock(x - 90, baseY - 20, 40, 30, 'clay', 3);
   addStableBlock(x - 45, baseY - 20, 40, 30, 'clay', 3);
   addStableBlock(x, baseY - 20, 40, 30, 'clay', 3);
@@ -960,15 +985,17 @@ function buildAssamHouse(x: number): void {
   addStableBlock(x, baseY - 155, 60, 15, 'wood', 2);
   addStableBlock(x, baseY - 30, 80, 30, 'wood', 3);
 
+  // Adjusted pig positions for larger size
   addPig(x - 35, baseY - 60, 5, false);
   addPig(x + 35, baseY - 60, 5, false);
   addPig(x, baseY - 100, 5, false);
   addPig(x - 80, baseY - 40, 5, false);
 }
 
-function buildTwoStory(x: number): void {
+function buildTwoStory(x: number) {
   const baseY = STRUCTURE_BASE_Y;
   
+  // Increased platform width
   const platform = Bodies.rectangle(x, baseY, 500, 30, {
     isStatic: true, label: 'platform', friction: 0.9, restitution: 0.1
   });
@@ -994,6 +1021,7 @@ function buildTwoStory(x: number): void {
   addStableBlock(x, baseY - 85, 170, 15, 'wood', 2);
   addStableBlock(x, baseY - 225, 260, 20, 'wood', 2);
 
+  // Adjusted pig positions for larger size
   addPig(x - 90, baseY - 45, 6, false);
   addPig(x + 90, baseY - 45, 6, false);
   addPig(x - 70, baseY - 115, 6, false);
@@ -1001,9 +1029,10 @@ function buildTwoStory(x: number): void {
   addPig(x, baseY - 185, 6, false);
 }
 
-function buildThreeStory(x: number): void {
+function buildThreeStory(x: number) {
   const baseY = STRUCTURE_BASE_Y;
   
+  // Increased platform width
   const platform = Bodies.rectangle(x, baseY, 550, 30, {
     isStatic: true, label: 'platform', friction: 0.9, restitution: 0.1
   });
@@ -1034,6 +1063,7 @@ function buildThreeStory(x: number): void {
 
   addStableBlock(x, baseY - 350, 220, 20, 'wood', 2);
 
+  // Adjusted pig positions for larger size
   addPig(x - 100, baseY - 50, 8, false);
   addPig(x + 100, baseY - 50, 8, false);
   addPig(x - 80, baseY - 130, 8, false);
@@ -1041,9 +1071,10 @@ function buildThreeStory(x: number): void {
   addPig(x, baseY - 270, 12, true);
 }
 
-function buildFinalLevel(x: number): void {
+function buildFinalLevel(x: number) {
   const baseY = STRUCTURE_BASE_Y;
   
+  // Increased platform width
   const platform = Bodies.rectangle(x, baseY, 600, 30, {
     isStatic: true, label: 'platform', friction: 0.9, restitution: 0.1
   });
@@ -1064,6 +1095,7 @@ function buildFinalLevel(x: number): void {
   addStableBlock(x + 70, baseY - 200, 30, 80, 'stone', 3);
   addStableBlock(x, baseY - 240, 180, 25, 'stone', 2);
 
+  // Adjusted pig positions for larger size
   addPig(x - 180, baseY - 120, 8, false);
   addPig(x + 180, baseY - 120, 8, false);
   addPig(x - 90, baseY - 50, 8, false);
@@ -1073,17 +1105,20 @@ function buildFinalLevel(x: number): void {
   addPig(x, baseY - 240, 15, true);
 }
 
-function buildWorld(): void {
-  setupMobileScaling();
-  
+let ground: Matter.Body;
+let leftWall: Matter.Body;
+let rightWall: Matter.Body;
+let slingAnchor = { x: 170, y: 0 };
+
+function buildWorld() {
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
+  // KEEP BIRD RADIUS AT 25 (good size)
   BIRD_RADIUS = Math.max(20, Math.min(28, Math.floor(Math.min(WORLD_W, WORLD_H) * 0.03)));
   slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
   slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
 
-  // Clear existing objects
   activeParticles.forEach(particle => {
     try { World.remove(world, particle); } catch (e) {}
   });
@@ -1103,7 +1138,16 @@ function buildWorld(): void {
 
   createBackground();
 
-  // Create ground and walls
+  // Load images if not already loaded
+  if (!imagesLoaded) {
+    loadImages().then((success) => {
+      console.log('Image loading completed:', success ? 'Success' : 'Failed');
+    }).catch((error) => {
+      console.error('Image loading error:', error);
+    });
+  }
+
+  // FIXED: Ground with less bounciness
   ground = Bodies.rectangle(
     WORLD_W / 2,
     WORLD_H - GROUND_HEIGHT / 2,
@@ -1112,8 +1156,8 @@ function buildWorld(): void {
     {
       isStatic: true,
       label: 'ground',
-      friction: 0.9,
-      restitution: 0.1
+      friction: 0.9,      // Increased friction
+      restitution: 0.1    // Reduced bounciness
     }
   );
 
@@ -1147,7 +1191,7 @@ function buildWorld(): void {
     case 4: 
       buildFinalLevel(structureX); 
       break;
-    default:
+  default:
       buildAssamHouse(structureX);
       break;
   }
@@ -1166,15 +1210,13 @@ function buildWorld(): void {
     attachBirdToSling(0);
   }
 
-  // Set up collision handler
   Events.off(engine, 'collisionStart');
   Events.on(engine, 'collisionStart', handleCollision);
 }
 
-function autoAdvance(): void {
+function autoAdvance() {
   if (gameState !== 'playing') return;
 
-  // Check for falling pigs
   for (let i = pigs.length - 1; i >= 0; i--) {
     const pig = pigs[i];
     const fallDistance = pig.body.position.y - pig.lastY;
@@ -1187,13 +1229,13 @@ function autoAdvance(): void {
           World.remove(world, pig.body);
           pigs.splice(i, 1);
           addScore(pig.isBoss ? 300 : 150);
+          createPigDeathEffect(pig.body.position.x, pig.body.position.y, pig.isBoss);
         } catch (e) {}
       }
     }
     if (pig.body) pig.lastY = pig.body.position.y;
   }
 
-  // Check level completion
   if (pigs.length === 0) {
     console.log(`Level ${currentLevel} completed! No pigs left.`);
     setTimeout(() => {
@@ -1204,7 +1246,6 @@ function autoAdvance(): void {
     return;
   }
 
-  // Remove old birds
   const now = Date.now();
   for (let i = birds.length - 1; i >= 0; i--) {
     const b = birds[i];
@@ -1221,7 +1262,6 @@ function autoAdvance(): void {
     }
   }
 
-  // Advance to next bird or game over
   const current = birds[currentBirdIndex];
   
   if (!current || current.launched) {
@@ -1245,7 +1285,7 @@ function autoAdvance(): void {
   advanceTimer = 0;
 }
 
-function clientToWorld(clientX: number, clientY: number): { x: number; y: number } {
+function clientToWorld(clientX: number, clientY: number) {
   const rect = canvas.getBoundingClientRect();
   const x = (clientX - rect.left) * (WORLD_W / rect.width);
   const y = (clientY - rect.top) * (WORLD_H / rect.height);
@@ -1335,7 +1375,7 @@ canvas.addEventListener('pointercancel', (ev) => {
   }
 });
 
-function renderFrame(): void {
+function renderFrame() {
   if (gameState !== 'playing') return;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1355,7 +1395,7 @@ function renderFrame(): void {
 
   drawGrass(ctx);
 
-  // Render blocks
+  // Render blocks with damage states
   for (const blk of blocks) {
     const b = blk.body;
     ctx.save();
@@ -1367,24 +1407,61 @@ function renderFrame(): void {
     const damageRatio = blk.health / blk.maxHealth;
 
     let color = '#999';
+    let pattern = '';
     let strokeColor = '#333';
     let opacity = 1;
     
     switch (blk.damageState) {
-      case 'intact': opacity = 1.0; break;
-      case 'cracked': opacity = 0.8; break;
-      case 'broken': opacity = 0.6; break;
-      case 'destroyed': opacity = 0.4; break;
+      case 'intact':
+        opacity = 1.0;
+        break;
+      case 'cracked':
+        opacity = 0.8;
+        break;
+      case 'broken':
+        opacity = 0.6;
+        break;
+      case 'destroyed':
+        opacity = 0.4;
+        break;
     }
     
     switch (blk.type) {
-      case 'wood': color = damageRatio > 0.5 ? '#8B4513' : '#6b3f1b'; strokeColor = '#5D4037'; break;
-      case 'stone': color = damageRatio > 0.5 ? '#6f6f6f' : '#525252'; strokeColor = '#424242'; break;
-      case 'glass': color = damageRatio > 0.5 ? 'rgba(173,216,230,0.8)' : 'rgba(135,206,250,0.5)'; strokeColor = 'rgba(30,144,255,0.8)'; break;
-      case 'cardboard': color = damageRatio > 0.5 ? '#DEB887' : '#CD853F'; strokeColor = '#A0522D'; break;
-      case 'bamboo': color = damageRatio > 0.5 ? '#9ACD32' : '#6B8E23'; strokeColor = '#556B2F'; break;
-      case 'thatch': color = damageRatio > 0.5 ? '#DAA520' : '#B8860B'; strokeColor = '#8B6914'; break;
-      case 'clay': color = damageRatio > 0.5 ? '#CD5C5C' : '#8B3A3A'; strokeColor = '#8B0000'; break;
+      case 'wood': 
+        color = damageRatio > 0.5 ? '#8B4513' : '#6b3f1b'; 
+        pattern = 'wood'; 
+        strokeColor = '#5D4037';
+        break;
+      case 'stone': 
+        color = damageRatio > 0.5 ? '#6f6f6f' : '#525252'; 
+        pattern = 'stone'; 
+        strokeColor = '#424242';
+        break;
+      case 'glass': 
+        color = damageRatio > 0.5 ? 'rgba(173,216,230,0.8)' : 'rgba(135,206,250,0.5)'; 
+        pattern = 'glass'; 
+        strokeColor = 'rgba(30,144,255,0.8)';
+        break;
+      case 'cardboard': 
+        color = damageRatio > 0.5 ? '#DEB887' : '#CD853F'; 
+        pattern = 'cardboard'; 
+        strokeColor = '#A0522D';
+        break;
+      case 'bamboo': 
+        color = damageRatio > 0.5 ? '#9ACD32' : '#6B8E23'; 
+        pattern = 'bamboo'; 
+        strokeColor = '#556B2F';
+        break;
+      case 'thatch': 
+        color = damageRatio > 0.5 ? '#DAA520' : '#B8860B'; 
+        pattern = 'thatch'; 
+        strokeColor = '#8B6914';
+        break;
+      case 'clay': 
+        color = damageRatio > 0.5 ? '#CD5C5C' : '#8B3A3A'; 
+        pattern = 'clay'; 
+        strokeColor = '#8B0000';
+        break;
     }
 
     ctx.globalAlpha = opacity;
@@ -1409,6 +1486,32 @@ function renderFrame(): void {
       }
     }
 
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 1;
+    if (pattern === 'wood' || pattern === 'bamboo') {
+      for (let i = 0; i < 4; i++) {
+        ctx.beginPath();
+        ctx.moveTo(-w / 2 + 4, -h / 2 + (i + 1) * h / 5);
+        ctx.lineTo(w / 2 - 4, -h / 2 + (i + 1) * h / 5);
+        ctx.stroke();
+      }
+    } else if (pattern === 'stone') {
+      for (let i = 0; i < 4; i++) {
+        for (let j = 0; j < 3; j++) {
+          ctx.beginPath();
+          ctx.arc(-w / 3 + (i * w / 3), -h / 3 + (j * h / 3), 2, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      }
+    } else if (pattern === 'thatch') {
+      for (let i = 0; i < 6; i++) {
+        ctx.beginPath();
+        ctx.moveTo(-w / 2 + 3, -h / 2 + i * 4);
+        ctx.lineTo(w / 2 - 3, -h / 2 + i * 4);
+        ctx.stroke();
+      }
+    }
+
     ctx.globalAlpha = 1;
     ctx.strokeStyle = strokeColor;
     ctx.lineWidth = 2;
@@ -1417,27 +1520,31 @@ function renderFrame(): void {
     ctx.restore();
   }
 
-  // Render pigs
+  // RENDER PIGS (with friend faces based on level and boss status)
   for (const pig of pigs) {
     const p = pig.body;
     ctx.save();
     ctx.translate(p.position.x, p.position.y);
     ctx.rotate(p.angle);
+    // SIGNIFICANTLY INCREASED PIG RADIUS: regular pigs from 20 to 50, boss pigs from 25 to 60
     const r = pig.isBoss ? 60 : 50;
 
     // Draw appropriate friend face on pig
     if (imagesLoaded) {
       let pigImage: HTMLImageElement;
       
+      // Logic for choosing the right image
       if (pig.isBoss) {
+        // Boss pigs - different friends for different levels
         if (currentLevel === 3) {
-          pigImage = friend3Image;
+          pigImage = friend3Image; // Level 3 boss
         } else if (currentLevel === 4) {
-          pigImage = friend4Image;
+          pigImage = friend4Image; // Level 4 boss
         } else {
-          pigImage = friend2Image;
+          pigImage = friend2Image; // Fallback for any other bosses
         }
       } else {
+        // Regular pigs - always friend 2
         pigImage = friend2Image;
       }
       
@@ -1446,16 +1553,22 @@ function renderFrame(): void {
         ctx.arc(0, 0, r, 0, Math.PI * 2);
         ctx.clip();
         
+        // Draw the face image
         ctx.drawImage(pigImage, -r, -r, r * 2, r * 2);
         
+        // Reset clipping
         ctx.restore();
         ctx.save();
         ctx.translate(p.position.x, p.position.y);
         ctx.rotate(p.angle);
       } else {
+        // Fallback to original pig colors
+        console.log('Pig image not complete, using fallback');
         drawOriginalPig(pig, r);
       }
     } else {
+      // Fallback to original pig colors
+      console.log('Images not loaded, using original pig');
       drawOriginalPig(pig, r);
     }
 
@@ -1467,7 +1580,7 @@ function renderFrame(): void {
     ctx.restore();
   }
 
-  // Render slingshot
+  // RENDER SLINGSHOT
   const sx = slingAnchor.x;
   const sy = slingAnchor.y;
   const groundY = WORLD_H - GROUND_HEIGHT;
@@ -1535,14 +1648,14 @@ function renderFrame(): void {
     }
   }
 
-  // Render birds
+  // RENDER BIRDS (with friend1 faces)
   for (let i = 0; i < birds.length; i++) {
     const br = birds[i];
     const b = br.body;
     ctx.save();
     ctx.translate(b.position.x, b.position.y);
     ctx.rotate(b.angle);
-    const r = BIRD_RADIUS;
+    const r = BIRD_RADIUS; // Kept at 25 (good size)
 
     // Draw friend1 face on bird
     if (imagesLoaded && friend1Image && friend1Image.complete) {
@@ -1550,13 +1663,17 @@ function renderFrame(): void {
       ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.clip();
       
+      // Draw the face image
       ctx.drawImage(friend1Image, -r, -r, r * 2, r * 2);
       
+      // Reset clipping
       ctx.restore();
       ctx.save();
       ctx.translate(b.position.x, b.position.y);
       ctx.rotate(b.angle);
     } else {
+      // Fallback to original bird colors if images not loaded
+      console.log('Bird image not loaded, using fallback colors');
       const fill = br.type === 'red' ? '#DC143C' : (br.type === 'blue' ? '#1E90FF' : '#FFD700');
       ctx.fillStyle = fill;
       ctx.beginPath();
@@ -1608,18 +1725,21 @@ function renderFrame(): void {
   }
 }
 
-// Game loop
-(function loop(): void {
+(function loop() {
   autoAdvance();
   renderFrame();
   requestAnimationFrame(loop);
 })();
 
-function showMenu(): void {
+function showMenu() {
   gameState = 'menu';
+  // Stop any playing music when returning to menu
   stopBackgroundMusic();
+  
+  // Reset victory/defeat flag
   isPlayingVictoryOrDefeat = false;
   
+  // Clean up victory/defeat sounds
   if (victorySound) {
     victorySound.pause();
     victorySound = null;
@@ -1638,8 +1758,10 @@ function showMenu(): void {
   if (muteBtn) muteBtn.style.display = 'none';
 }
 
-function showGame(): void {
+function showGame() {
   gameState = 'playing';
+  
+  // Reset victory/defeat flag when starting a new game/level
   isPlayingVictoryOrDefeat = false;
   
   if (menuScreen) menuScreen.style.display = 'none';
@@ -1650,14 +1772,16 @@ function showGame(): void {
   if (canvas) canvas.style.display = 'block';
   if (muteBtn) muteBtn.style.display = 'block';
   
+  // PLAY LEVEL MUSIC
   playLevelMusic();
   buildWorld();
 }
 
-function showLevelComplete(): void {
+function showLevelComplete() {
   if (gameState !== 'playing') return;
   gameState = 'levelComplete';
   
+  // STOP LEVEL MUSIC AND PLAY VICTORY SOUND
   stopBackgroundMusic();
   playVictorySound();
   
@@ -1667,7 +1791,7 @@ function showLevelComplete(): void {
   if (finalScoreEl) finalScoreEl.textContent = `Score: ${globalScore}`;
 }
 
-function showGameCompletion(): void {
+function showGameCompletion() {
   gameState = 'levelComplete';
   if (levelCompleteScreen) levelCompleteScreen.style.display = 'none';
   if (gameCompletionScreen) {
@@ -1676,10 +1800,11 @@ function showGameCompletion(): void {
   }
 }
 
-function showGameOver(): void {
+function showGameOver() {
   if (gameState !== 'playing') return;
   gameState = 'gameOver';
   
+  // STOP LEVEL MUSIC AND PLAY DEFEAT SOUND
   stopBackgroundMusic();
   playDefeatSound();
   
@@ -1687,7 +1812,7 @@ function showGameOver(): void {
   if (gameOverScoreEl) gameOverScoreEl.textContent = `Score: ${globalScore} | Level: ${currentLevel}`;
 }
 
-function initializeEventListeners(): void {
+function initializeEventListeners() {
   const playBtn = document.getElementById('playBtn');
   const nextLevelBtn = document.getElementById('nextLevelBtn');
   const menuFromCompleteBtn = document.getElementById('menuFromCompleteBtn');
@@ -1710,7 +1835,7 @@ function initializeEventListeners(): void {
       if (currentLevel < 4) {
         currentLevel++;
         console.log(`Moving to level ${currentLevel}`);
-        showGame();
+        showGame(); // This will call playLevelMusic() for the new level
       } else {
         showGameCompletion();
       }
@@ -1762,12 +1887,10 @@ function initializeEventListeners(): void {
 
 window.addEventListener('resize', () => {
   resizeCanvas();
-  if (gameState === 'playing') {
-    setTimeout(() => buildWorld(), 100);
-  }
+  if (gameState === 'playing') buildWorld();
 });
 
-// Performance cleanup
+// LAG FIX: Performance monitoring and cleanup
 setInterval(() => {
   if (activeParticles.length > MAX_PARTICLES) {
     const excess = activeParticles.splice(MAX_PARTICLES);
@@ -1777,21 +1900,15 @@ setInterval(() => {
   }
 }, 1000);
 
-// Initialize the game
-function initializeGame(): void {
-  resizeCanvas();
-  initializeAudio();
-  
-  // Load images
-  loadImages().then((success) => {
-    console.log('Initial image loading:', success ? 'Success' : 'Failed');
-  }).catch((error) => {
-    console.error('Initial image loading error:', error);
-  });
+// Pre-load images when the script loads
+loadImages().then((success) => {
+  console.log('Initial image loading:', success ? 'Success' : 'Failed');
+}).catch((error) => {
+  console.error('Initial image loading error:', error);
+});
 
-  initializeEventListeners();
-  showMenu();
-}
+// Initialize audio system
+initializeAudio();
 
-// Start the game
-initializeGame();
+initializeEventListeners();
+showMenu();
