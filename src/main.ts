@@ -8,16 +8,13 @@ let globalScore = 0;
 let isMuted = false;
 let isLandscapeMode = false;
 
-// SIMPLIFIED: Remove complex orientation delays
 function checkOrientation() {
   const isMobile = window.innerWidth <= 768;
   const isLandscape = window.matchMedia("(orientation: landscape)").matches;
   
   if (isMobile && !isLandscape) {
-    // Mobile portrait - show rotate message
     document.body.classList.remove('landscape-mode');
   } else {
-    // Mobile landscape or desktop - enable game
     document.body.classList.add('landscape-mode');
     isLandscapeMode = true;
   }
@@ -264,7 +261,6 @@ function attachBirdToSling(index: number) {
   birdObj.launched = false;
 }
 
-// FIXED SLINGSHOT: Simplified release function
 function releaseBirdFromSling() {
   if (!slingConstraint) return;
   
@@ -277,7 +273,6 @@ function releaseBirdFromSling() {
   slingConstraint = null;
 
   if (dist < 10) {
-    // Too small pull - reset bird
     Body.setPosition(birdBody, { x: 170, y: WORLD_H - GROUND_HEIGHT - 110 });
     attachBirdToSling(currentBirdIndex);
     return;
@@ -331,7 +326,6 @@ function addPig(x: number, y: number, health: number, isBoss: boolean): Matter.B
   return body;
 }
 
-// Simple structures
 function buildAssamHouse(x: number) {
   const baseY = STRUCTURE_BASE_Y;
   
@@ -349,6 +343,7 @@ function buildAssamHouse(x: number) {
 
   addStableBlock(x, baseY - 50, 220, 20, 'wood', 2);
 
+  // FIXED: Actually add pigs to the level
   addPig(x - 30, baseY - 60, 5, false);
   addPig(x + 30, baseY - 60, 5, false);
   addPig(x, baseY - 100, 5, false);
@@ -368,7 +363,8 @@ function buildTwoStory(x: number) {
   addStableBlock(x - 100, baseY - 105, 28, 60, 'stone', 5);
   addStableBlock(x + 100, baseY - 105, 28, 60, 'stone', 5);
 
-  addStableBlock(x - 80, baseY - 45, 6, false);
+  // FIXED: Actually add pigs to the level
+  addPig(x - 80, baseY - 45, 6, false);
   addPig(x + 80, baseY - 45, 6, false);
   addPig(x, baseY - 185, 6, false);
 }
@@ -387,6 +383,7 @@ function buildThreeStory(x: number) {
   addStableBlock(x - 120, baseY - 120, 28, 70, 'stone', 5);
   addStableBlock(x + 120, baseY - 120, 28, 70, 'stone', 5);
 
+  // FIXED: Actually add pigs to the level
   addPig(x - 90, baseY - 50, 8, false);
   addPig(x + 90, baseY - 50, 8, false);
   addPig(x, baseY - 270, 12, true);
@@ -403,6 +400,7 @@ function buildFinalLevel(x: number) {
   addStableBlock(x - 160, baseY - 60, 35, 100, 'stone', 8);
   addStableBlock(x + 160, baseY - 60, 35, 100, 'stone', 8);
 
+  // FIXED: Actually add pigs to the level
   addPig(x - 160, baseY - 120, 8, false);
   addPig(x + 160, baseY - 120, 8, false);
   addPig(x, baseY - 240, 15, true);
@@ -422,12 +420,13 @@ function buildWorld() {
   Composite.clear(world, false);
   birds = [];
   blocks = [];
-  pigs = [];
+  pigs = []; // FIXED: Make sure pigs array is cleared
   currentBirdIndex = 0;
   slingConstraint = null;
   score = 0;
   if (scoreEl) scoreEl.textContent = `Score: ${score}`;
   if (levelEl) levelEl.textContent = `Level: ${currentLevel}`;
+  advanceTimer = 0;
 
   createBackground();
 
@@ -454,13 +453,27 @@ function buildWorld() {
 
   const structureX = WORLD_W - Math.floor(WORLD_W * 0.25);
   
+  console.log(`Building level ${currentLevel} with structure at ${structureX}`);
+  
   switch (currentLevel) {
-    case 1: buildAssamHouse(structureX); break;
-    case 2: buildTwoStory(structureX); break;
-    case 3: buildThreeStory(structureX); break;
-    case 4: buildFinalLevel(structureX); break;
-    default: buildAssamHouse(structureX); break;
+    case 1: 
+      buildAssamHouse(structureX); 
+      break;
+    case 2: 
+      buildTwoStory(structureX); 
+      break;
+    case 3: 
+      buildThreeStory(structureX); 
+      break;
+    case 4: 
+      buildFinalLevel(structureX); 
+      break;
+    default: 
+      buildAssamHouse(structureX); 
+      break;
   }
+
+  console.log(`Level ${currentLevel} built with ${pigs.length} pigs`);
 
   const birdTypesList: ('red' | 'blue' | 'yellow')[][] = [
     ['red', 'red', 'red', 'blue', 'yellow'],
@@ -476,25 +489,52 @@ function buildWorld() {
     attachBirdToSling(0);
   }
 
-  // Simple collision handling
+  // Remove any existing collision handlers first
+  Events.off(engine, 'collisionStart');
+  
+  // Add collision handler
   Events.on(engine, 'collisionStart', (event) => {
     const pairs = event.pairs;
     for (const pair of pairs) {
       const bodyA = pair.bodyA;
       const bodyB = pair.bodyB;
 
+      // Bird hits pig
       if ((bodyA.label === 'pig' && bodyB.label === 'bird') || 
           (bodyB.label === 'pig' && bodyA.label === 'bird')) {
         
         const pigBody = bodyA.label === 'pig' ? bodyA : bodyB;
-        const pig = pigs.find(p => p.body === pigBody);
+        const birdBody = bodyA.label === 'pig' ? bodyB : bodyA;
         
-        if (pig) {
+        const pig = pigs.find(p => p.body === pigBody);
+        const bird = birds.find(b => b.body === birdBody);
+        
+        if (pig && bird) {
           pig.health -= 10;
+          console.log(`Pig hit! Health: ${pig.health}`);
+          
           if (pig.health <= 0) {
             World.remove(world, pig.body);
             pigs = pigs.filter(p => p !== pig);
             addScore(pig.isBoss ? 300 : 150);
+            console.log(`Pig defeated! Pigs remaining: ${pigs.length}`);
+          }
+        }
+      }
+
+      // Bird hits block
+      if ((bodyA.label === 'block' && bodyB.label === 'bird') || 
+          (bodyB.label === 'block' && bodyA.label === 'bird')) {
+        
+        const blockBody = bodyA.label === 'block' ? bodyA : bodyB;
+        const block = blocks.find(b => b.body === blockBody);
+        
+        if (block) {
+          block.health -= 5;
+          if (block.health <= 0) {
+            World.remove(world, block.body);
+            blocks = blocks.filter(b => b !== block);
+            addScore(50);
           }
         }
       }
@@ -505,7 +545,9 @@ function buildWorld() {
 function autoAdvance() {
   if (gameState !== 'playing') return;
 
+  // Check if all pigs are defeated
   if (pigs.length === 0) {
+    console.log('All pigs defeated! Level complete.');
     setTimeout(() => {
       if (gameState === 'playing' && pigs.length === 0) {
         showLevelComplete();
@@ -514,6 +556,7 @@ function autoAdvance() {
     return;
   }
 
+  // Check if current bird is launched and get next bird
   const current = birds[currentBirdIndex];
   
   if (!current || current.launched) {
@@ -521,16 +564,19 @@ function autoAdvance() {
     if (nextIndex >= 0) {
       currentBirdIndex = nextIndex;
       attachBirdToSling(currentBirdIndex);
+      advanceTimer = 0;
     } else if (birds.every(b => b.launched)) {
+      // All birds launched but pigs remain
       advanceTimer++;
-      if (advanceTimer > 180 && pigs.length > 0) {
+      if (advanceTimer > 180) {
+        console.log('All birds used but pigs remain. Game over.');
         showGameOver();
+        advanceTimer = 0;
       }
     }
   }
 }
 
-// FIXED SLINGSHOT: Simplified touch events
 function clientToWorld(clientX: number, clientY: number) {
   const rect = canvas.getBoundingClientRect();
   const x = (clientX - rect.left);
@@ -583,8 +629,6 @@ canvas.addEventListener('pointerup', () => {
   
   dragging = false;
   canvas.style.cursor = 'default';
-  
-  // Always release the bird when pointer is released
   releaseBirdFromSling();
 });
 
@@ -644,6 +688,11 @@ function renderFrame() {
     ctx.strokeStyle = pig.isBoss ? '#C62828' : '#4CAF50';
     ctx.lineWidth = 3;
     ctx.stroke();
+
+    // Health bar
+    const healthColor = pig.health > pig.maxHealth * 0.5 ? '#4CAF50' : pig.health > 1 ? '#FF9800' : '#F44336';
+    ctx.fillStyle = healthColor;
+    ctx.fillRect(-r, -r - 10, (pig.health / pig.maxHealth) * (r * 2), 4);
 
     ctx.restore();
   }
@@ -787,6 +836,7 @@ function showGame() {
 function showLevelComplete() {
   if (gameState !== 'playing') return;
   gameState = 'levelComplete';
+  console.log(`Showing level complete for level ${currentLevel}`);
   if (levelCompleteScreen) levelCompleteScreen.style.display = 'flex';
   if (completeLevelEl) completeLevelEl.textContent = `Level ${currentLevel} Complete!`;
   if (finalScoreEl) finalScoreEl.textContent = `Score: ${globalScore}`;
@@ -804,6 +854,7 @@ function showGameCompletion() {
 function showGameOver() {
   if (gameState !== 'playing') return;
   gameState = 'gameOver';
+  console.log('Showing game over');
   if (gameOverScreen) gameOverScreen.style.display = 'flex';
   if (gameOverScoreEl) gameOverScoreEl.textContent = `Score: ${globalScore} | Level: ${currentLevel}`;
 }
@@ -824,6 +875,7 @@ function initializeEventListeners() {
   });
 
   if (nextLevelBtn) nextLevelBtn.addEventListener('click', () => {
+    console.log(`Next level clicked. Current: ${currentLevel}`);
     if (currentLevel < 4) {
       currentLevel++;
       showGame();
