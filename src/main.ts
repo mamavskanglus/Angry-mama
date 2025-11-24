@@ -1907,6 +1907,47 @@ loadImages().then((success) => {
   console.error('Initial image loading error:', error);
 });
 
+// Add this function to handle orientation changes
+function handleOrientationChange() {
+  const rotateMessage = document.getElementById('rotateMessage') as HTMLDivElement;
+  
+  if (window.innerWidth <= 768) {
+    if (window.matchMedia("(orientation: portrait)").matches) {
+      // Portrait mode on mobile - show rotate message
+      if (rotateMessage) rotateMessage.style.display = 'flex';
+      if (gameState === 'playing') {
+        // If game is playing and user rotates to portrait, pause the game
+        canvas.style.display = 'none';
+        gameUI.style.display = 'none';
+        muteBtn.style.display = 'none';
+      }
+    } else {
+      // Landscape mode on mobile - hide rotate message and show game
+      if (rotateMessage) rotateMessage.style.display = 'none';
+      if (gameState === 'playing') {
+        canvas.style.display = 'block';
+        gameUI.style.display = 'block';
+        muteBtn.style.display = 'block';
+        // Rebuild world to adjust to new dimensions
+        setTimeout(() => {
+          resizeCanvas();
+          buildWorld();
+        }, 100);
+      }
+    }
+  } else {
+    // Desktop - always hide rotate message
+    if (rotateMessage) rotateMessage.style.display = 'none';
+  }
+}
+
+// Add these event listeners at the end of your main.ts file, after initializeEventListeners():
+window.addEventListener('orientationchange', handleOrientationChange);
+window.addEventListener('resize', handleOrientationChange);
+
+// Initial check
+handleOrientationChange();
+
 // Initialize audio system
 initializeAudio();
 

@@ -754,7 +754,7 @@ if (!canvas) throw new Error('Canvas not found');
 const ctx = canvas.getContext('2d');
 const engine = Engine.create();
 const world = engine.world;
-// LAG FIX: Optimized physics settings
+// FIXED: Reduced bounciness and improved physics for less bouncing
 world.gravity.y = 1;
 engine.timing.timeScale = 0.9;
 const runner = Runner.create();
@@ -1050,12 +1050,13 @@ function spawnBirds(types) {
     for(let i = 0; i < types.length; i++){
         const x = startX - i * (BIRD_RADIUS * 2.8);
         const y = startY;
+        // FIXED: Reduced bounciness and increased friction for less bouncing
         const body = Bodies.circle(x, y, BIRD_RADIUS, {
             label: 'bird',
-            restitution: 0.6,
-            friction: 0.4,
+            restitution: 0.3,
+            friction: 0.8,
+            frictionAir: 0.01,
             density: 0.003,
-            frictionAir: 0.005,
             collisionFilter: {
                 group: -1
             }
@@ -1136,7 +1137,7 @@ function releaseBirdFromSling() {
     };
     Body.setVelocity(birdBody, velocity);
     Body.setAngularVelocity(birdBody, (Math.random() - 0.5) * 0.2);
-    birdBody.frictionAir = 0.005;
+    birdBody.frictionAir = 0.01;
     const idx = birds.findIndex((b)=>b.body === birdBody);
     if (idx >= 0) {
         birds[idx].launched = true;
@@ -1153,11 +1154,12 @@ function addStableBlock(x, y, w, h, type, health) {
         thatch: 0.0007,
         clay: 0.0025
     };
+    // FIXED: Reduced bounciness for blocks
     const body = Bodies.rectangle(x, y, w, h, {
         label: 'block',
         isStatic: true,
-        friction: 0.7,
-        restitution: 0.3,
+        friction: 0.8,
+        restitution: 0.2,
         density: densities[type],
         collisionFilter: {
             group: 0
@@ -1179,6 +1181,11 @@ function makeBlockDynamic(block) {
     if (!block.isStatic) return;
     Body.setStatic(block.body, false);
     block.isStatic = false;
+    // FIXED: Keep the reduced bounciness when making dynamic
+    Body.set(block.body, {
+        restitution: 0.2,
+        friction: 0.8
+    });
     Body.setVelocity(block.body, {
         x: block.body.velocity.x + (Math.random() - 0.5) * 2,
         y: block.body.velocity.y + (Math.random() - 0.5) * 2
@@ -1187,10 +1194,11 @@ function makeBlockDynamic(block) {
 // SIGNIFICANTLY INCREASED PIG SIZES: regular pigs from 20 to 50, boss pigs from 25 to 60
 function addPig(x, y, health, isBoss) {
     const radius = isBoss ? 60 : 50;
+    // FIXED: Reduced bounciness for pigs
     const body = Bodies.circle(x, y, radius, {
         label: 'pig',
-        restitution: 0.4,
-        friction: 0.6,
+        restitution: 0.2,
+        friction: 0.8,
         density: 0.0025,
         collisionFilter: {
             group: 0
@@ -1687,19 +1695,24 @@ function buildWorld() {
     }).catch((error)=>{
         console.error('Image loading error:', error);
     });
+    // FIXED: Ground with less bounciness
     ground = Bodies.rectangle(WORLD_W / 2, WORLD_H - GROUND_HEIGHT / 2, WORLD_W * 3, GROUND_HEIGHT, {
         isStatic: true,
         label: 'ground',
-        friction: 0.8,
-        restitution: 0.1
+        friction: 0.9,
+        restitution: 0.1 // Reduced bounciness
     });
     leftWall = Bodies.rectangle(-50, WORLD_H / 2, 100, WORLD_H * 3, {
         isStatic: true,
-        label: 'wall'
+        label: 'wall',
+        friction: 0.8,
+        restitution: 0.1
     });
     rightWall = Bodies.rectangle(WORLD_W + 50, WORLD_H / 2, 100, WORLD_H * 3, {
         isStatic: true,
-        label: 'wall'
+        label: 'wall',
+        friction: 0.8,
+        restitution: 0.1
     });
     World.add(world, [
         ground,

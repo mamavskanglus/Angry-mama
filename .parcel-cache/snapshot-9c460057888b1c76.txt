@@ -22,7 +22,7 @@
 86C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\globals\package.json134073592369858776 0
 108C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@swc\helpers\_\_apply_decorated_descriptor134073592380638460 1
 113C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\core\lib\requests\ParcelBuildRequest.js134073617822320907 0
-57C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist134084727430363122 1
+57C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist134084765658989802 1
 79C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\picomatch\lib134073592370708106 1
 108C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@swc\helpers\cjs\_class_name_tdz_error.cjs134073592373415771 0
 142C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\msgpackr-extract\node_modules\.bin\node-gyp-build-optional-packages-test.cmd134073592494272724 0
@@ -30,7 +30,7 @@
 105C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\caniuse-lite\data\features\classlist.js134073592379004894 0
 70C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\.bin134073617859234586 1
 79C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\node-releases134073592370217348 1
-63C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\index.html134084727428722503 0
+63C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\index.html134084734832175360 0
 96C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@swc\helpers\cjs\_decorate.cjs134073592376003518 0
 76C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@swc\types134073592376964377 1
 70C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\package-lock.json134083713388414853 0
@@ -69,7 +69,7 @@
 97C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\semver\ranges\max-satisfying.js134073592373755085 0
 98C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\postcss-value-parser\lib\unit.js134073592369956127 0
 84C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\is-number\index.js134073592369355222 0
-63C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\styles.css134082983662738397 0
+63C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\styles.css134084738488189912 0
 117C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\typescript\lib\ja\diagnosticMessages.generated.json134073593144369782 0
 107C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\caniuse-lite\data\features\textcontent.js134073592386847254 0
 118C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\msgpackr-extract\node_modules\detect-libc\index.d.ts134073592371017879 0
@@ -94,7 +94,7 @@
 112C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\lmdb\dependencies\lmdb\libraries\liblmdb\mdb.c134073617812821595 0
 75C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@mischnic134073592363215419 1
 124C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@swc\helpers\_\_class_private_field_loose_key\package.json134073592381421421 0
-64C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\src\main.ts134084726815546242 0
+64C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\src\main.ts134084765612053738 0
 160C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\core\test\fixtures\local-plugin-config-pkg\node_modules\parcel-config-local\index.json134073617829811577 0
 105C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\utils\test\input\config\.testrc134073617787658908 0
 113C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@swc\helpers\esm\_apply_decorated_descriptor.js134073592378886915 0
@@ -2113,7 +2113,7 @@
 77C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\.bin\parcel134073617845373419 0
 93C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\packager-js\LICENSE134073617787196235 0
 109C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@swc\helpers\_\_initializer_define_property134073592382731187 1
-87C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist\angry-birds-clone.0f289648.js134084727233397582 0
+87C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist\angry-birds-clone.0f289648.js134084765658890146 0
 108C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\core\test\fixtures\parcel\other.js134073617821696571 0
 89C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\fs\package.json134073617801830247 0
 111C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\transformer-svg\lib\SVGTransformer.js134073617788104467 0
@@ -2519,7 +2519,7 @@
 107C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\caniuse-lite\data\features\multicolumn.js134073592385628560 0
 106C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\caniuse-lite\data\features\nav-timing.js134073592385701864 0
 103C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\caniuse-lite\data\features\netinfo.js134073592385731787 0
-88C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist\angry-birds-clone.1303bb05.css134084727234119018 0
+88C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist\angry-birds-clone.1303bb05.css134084765658876791 0
 110C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\caniuse-lite\data\features\object-observe.js134073592385827916 0
 127C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\graph\test\integration\adjacency-list-shared-array.js134073617788426201 0
 109C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\caniuse-lite\data\features\object-values.js134073592385837890 0
@@ -3107,7 +3107,7 @@
 88C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\optimizer-html134073617789324038 1
 89C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\package-manager134073617812282808 1
 87C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\packager-html134073617789393870 1
-91C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist\angry-birds-clone.0f289648.js.map134084727233512823 0
+91C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist\angry-birds-clone.0f289648.js.map134084765658959866 0
 86C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\packager-raw134073617789403817 1
 93C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\fs\lib\index.js.map134073617806775769 0
 86C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\@parcel\packager-svg134073617789423771 1
@@ -3758,8 +3758,8 @@
 78C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\.bin\tsc.ps1134073593146976249 0
 93C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\.bin\update-browserslist-db134073592494263217 0
 97C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\node_modules\.bin\update-browserslist-db.cmd134073592494263217 0
-92C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist\angry-birds-clone.1303bb05.css.map134084727234163082 0
+92C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist\angry-birds-clone.1303bb05.css.map134084765658949888 0
 83C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist\friend1-face.6bf21c15.png134084727233582467 0
 83C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist\friend4-face.0a8a95d7.png134084727234212974 0
-68C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist\index.html134084727430353032 0
+68C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist\index.html134084765658979813 0
 80C:\Users\MEGHNEIL\OneDrive\Desktop\angry-birds-clone\dist\level4-bg.ebd6ac7e.mp3134084727234262849 0
