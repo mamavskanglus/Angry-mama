@@ -714,21 +714,19 @@ function hmrAccept(bundle /*: ParcelRequire */ , id /*: string */ ) {
 }
 
 },{}],"gNc1f":[function(require,module,exports,__globalThis) {
-// src/main.ts
 var _matterJs = require("matter-js");
-// Import images as modules
 const { Engine, World, Bodies, Body, Runner, Events, Constraint, Composite } = _matterJs;
 let gameState = 'menu';
 let currentLevel = 1;
 let globalScore = 0;
 let isMuted = false;
-// Audio elements - UPDATED FOR BETTER MANAGEMENT
+// Audio elements
 let bgMusic = null;
 let currentBgMusic = null;
 let victorySound = null;
 let defeatSound = null;
 let isPlayingVictoryOrDefeat = false;
-// Audio file paths - UPDATED FOR PARCEL
+// Audio file paths
 const AUDIO_PATHS = {
     level1: new URL(require("1aee6bf91e0c65e3")).href,
     level2: new URL(require("27d171d448d0d5a4")).href,
@@ -754,9 +752,9 @@ if (!canvas) throw new Error('Canvas not found');
 const ctx = canvas.getContext('2d');
 const engine = Engine.create();
 const world = engine.world;
-// FIXED: Reduced bounciness and improved physics for less bouncing
+// PERFECTED PHYSICS SETTINGS
 world.gravity.y = 1;
-engine.timing.timeScale = 0.9;
+engine.timing.timeScale = 1.0;
 const runner = Runner.create();
 Runner.run(runner, engine);
 const GROUND_HEIGHT = 90;
@@ -768,7 +766,6 @@ let friend4Image;
 let imagesLoaded = false;
 // Initialize all audio elements
 function initializeAudio() {
-    // We'll create audio elements on-demand
     victorySound = null;
     defeatSound = null;
 }
@@ -779,14 +776,12 @@ function createAndPlayAudio(src, volume = 0.7, loop = false) {
         const audio = new Audio(src);
         audio.volume = volume;
         audio.loop = loop;
-        // Add error handling for the audio element
         audio.addEventListener('error', (e)=>{
             console.log('Audio element error:', e, 'Src:', src);
         });
         const playPromise = audio.play();
         if (playPromise !== undefined) playPromise.catch((error)=>{
             console.log('Audio play failed:', error, 'Src:', src);
-        // Don't throw error, just log it
         });
         return audio;
     } catch (error) {
@@ -805,9 +800,7 @@ function stopBackgroundMusic() {
 }
 // Play background music for current level
 function playLevelMusic() {
-    // Don't play level music if we're currently playing victory/defeat sounds
     if (isPlayingVictoryOrDefeat) return;
-    // Stop current music if playing
     stopBackgroundMusic();
     let musicPath = '';
     switch(currentLevel){
@@ -836,63 +829,49 @@ function playLevelMusic() {
 function playVictorySound() {
     if (isMuted) return;
     console.log('Playing victory sound');
-    // Stop background music
     stopBackgroundMusic();
-    // Set flag to prevent level music from starting
     isPlayingVictoryOrDefeat = true;
-    // Clean up any existing victory sound
     if (victorySound) {
         victorySound.pause();
         victorySound = null;
     }
-    // Create and play victory sound
     victorySound = createAndPlayAudio(AUDIO_PATHS.victory, 0.7, false);
-    // Reset flag when victory sound ends
     if (victorySound) {
         victorySound.addEventListener('ended', ()=>{
             console.log('Victory sound ended');
             isPlayingVictoryOrDefeat = false;
             victorySound = null;
         });
-        // Also reset flag if there's an error
         victorySound.addEventListener('error', ()=>{
             console.log('Victory sound error');
             isPlayingVictoryOrDefeat = false;
             victorySound = null;
         });
-    } else // If sound creation failed, reset flag immediately
-    isPlayingVictoryOrDefeat = false;
+    } else isPlayingVictoryOrDefeat = false;
 }
 // Play defeat sound  
 function playDefeatSound() {
     if (isMuted) return;
     console.log('Playing defeat sound');
-    // Stop background music
     stopBackgroundMusic();
-    // Set flag to prevent level music from starting
     isPlayingVictoryOrDefeat = true;
-    // Clean up any existing defeat sound
     if (defeatSound) {
         defeatSound.pause();
         defeatSound = null;
     }
-    // Create and play defeat sound
     defeatSound = createAndPlayAudio(AUDIO_PATHS.defeat, 0.7, false);
-    // Reset flag when defeat sound ends
     if (defeatSound) {
         defeatSound.addEventListener('ended', ()=>{
             console.log('Defeat sound ended');
             isPlayingVictoryOrDefeat = false;
             defeatSound = null;
         });
-        // Also reset flag if there's an error
         defeatSound.addEventListener('error', ()=>{
             console.log('Defeat sound error');
             isPlayingVictoryOrDefeat = false;
             defeatSound = null;
         });
-    } else // If sound creation failed, reset flag immediately
-    isPlayingVictoryOrDefeat = false;
+    } else isPlayingVictoryOrDefeat = false;
 }
 // Update mute functionality
 function updateMuteState() {
@@ -909,26 +888,24 @@ function updateMuteState() {
             defeatSound.volume = 0;
         }
     } else {
-        // Unmute - restart level music if in playing state and not playing victory/defeat
         if (gameState === 'playing' && !isPlayingVictoryOrDefeat) playLevelMusic();
         if (victorySound) victorySound.volume = 0.7;
         if (defeatSound) defeatSound.volume = 0.7;
     }
 }
+// FIXED: PERFECT CANVAS RESIZING
 function resizeCanvas() {
     const dpr = Math.max(1, window.devicePixelRatio || 1);
-    const w = Math.max(320, window.innerWidth);
-    const h = Math.max(480, window.innerHeight);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
     canvas.style.width = `${w}px`;
     canvas.style.height = `${h}px`;
     canvas.width = Math.floor(w * dpr);
     canvas.height = Math.floor(h * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.scale(dpr, dpr);
 }
-resizeCanvas();
 let WORLD_W = window.innerWidth;
 let WORLD_H = window.innerHeight;
-// KEEP BIRD SIZE AT 25 (good size)
 let BIRD_RADIUS = 25;
 let STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
 let birds = [];
@@ -937,13 +914,11 @@ let slingConstraint = null;
 let blocks = [];
 let pigs = [];
 let score = 0;
-let dragging = false;
 let advanceTimer = 0;
-// LAG FIX: Reduced particle count
 const MAX_PARTICLES = 20;
 let activeParticles = [];
 let clouds = [];
-// FIXED IMAGE LOADING - Using imported paths
+// FIXED IMAGE LOADING
 function loadImages() {
     return new Promise((resolve)=>{
         let imagesToLoad = 4;
@@ -978,7 +953,6 @@ function loadImages() {
         friend2Image.onerror = ()=>onImageError('friend2-face.png');
         friend3Image.onerror = ()=>onImageError('friend3-face.png');
         friend4Image.onerror = ()=>onImageError('friend4-face.png');
-        // Try using new URL with import.meta.url
         try {
             friend1Image.src = new URL(require("1a510c795eead121")).href;
             friend2Image.src = new URL(require("47d7fb8c8e573c09")).href;
@@ -987,7 +961,6 @@ function loadImages() {
             console.log("\uD83D\uDD0D Trying to load images with import.meta.url");
         } catch (e) {
             console.error('import.meta.url failed, trying relative paths', e);
-            // Fallback to relative paths
             friend1Image.src = './assets/friend1-face.png';
             friend2Image.src = './assets/friend2-face.png';
             friend3Image.src = './assets/friend3-face.png';
@@ -1050,19 +1023,19 @@ function spawnBirds(types) {
     for(let i = 0; i < types.length; i++){
         const x = startX - i * (BIRD_RADIUS * 2.8);
         const y = startY;
-        // FIXED: Reduced bounciness and increased friction for less bouncing
         const body = Bodies.circle(x, y, BIRD_RADIUS, {
             label: 'bird',
-            restitution: 0.3,
+            restitution: 0.4,
             friction: 0.8,
-            frictionAir: 0.01,
+            frictionAir: 0.005,
             density: 0.003,
             collisionFilter: {
                 group: -1
             }
         });
         World.add(world, body);
-        Body.setStatic(body, true);
+        // FIXED: Don't make birds static initially
+        Body.setStatic(body, false);
         birds.push({
             body,
             launched: false,
@@ -1071,78 +1044,31 @@ function spawnBirds(types) {
         });
     }
 }
+// FIXED: PERFECT SLINGSHOT ATTACHMENT FUNCTION
 function attachBirdToSling(index) {
     if (index < 0 || index >= birds.length) return;
     currentBirdIndex = index;
     const birdObj = birds[index];
-    Body.setStatic(birdObj.body, false);
+    // Remove old constraint
+    if (slingConstraint) {
+        World.remove(world, slingConstraint);
+        slingConstraint = null;
+    }
+    // Reset bird completely
+    Body.setPosition(birdObj.body, {
+        x: slingAnchor.x,
+        y: slingAnchor.y
+    });
     Body.setVelocity(birdObj.body, {
         x: 0,
         y: 0
     });
     Body.setAngularVelocity(birdObj.body, 0);
-    Body.setPosition(birdObj.body, {
-        x: slingAnchor.x,
-        y: slingAnchor.y
-    });
     Body.setAngle(birdObj.body, 0);
-    if (slingConstraint) try {
-        World.remove(world, slingConstraint);
-    } catch (e) {}
-    slingConstraint = Constraint.create({
-        pointA: {
-            x: slingAnchor.x,
-            y: slingAnchor.y
-        },
-        bodyB: birdObj.body,
-        stiffness: 0.05,
-        damping: 0.08,
-        length: 0,
-        render: {
-            visible: false
-        }
-    });
-    // FIX: Use Composite.add instead of World.add for constraints
-    Composite.add(world, slingConstraint);
+    Body.setStatic(birdObj.body, false); // Make sure it's dynamic
     birdObj.launched = false;
-}
-function releaseBirdFromSling() {
-    if (!slingConstraint) return;
-    const birdBody = slingConstraint.bodyB;
-    const dx = slingAnchor.x - birdBody.position.x;
-    const dy = slingAnchor.y - birdBody.position.y;
-    const dist = Math.hypot(dx, dy);
-    try {
-        World.remove(world, slingConstraint);
-    } catch (e) {}
-    slingConstraint = null;
-    if (dist < 15) {
-        Body.setPosition(birdBody, {
-            x: slingAnchor.x,
-            y: slingAnchor.y
-        });
-        Body.setVelocity(birdBody, {
-            x: 0,
-            y: 0
-        });
-        Body.setAngularVelocity(birdBody, 0);
-        attachBirdToSling(currentBirdIndex);
-        return;
-    }
-    const power = Math.min(dist / 60, 2.5);
-    const velocityMag = power * 12;
-    const velocity = {
-        x: dx / dist * velocityMag,
-        y: dy / dist * velocityMag
-    };
-    Body.setVelocity(birdBody, velocity);
-    Body.setAngularVelocity(birdBody, (Math.random() - 0.5) * 0.2);
-    birdBody.frictionAir = 0.01;
-    const idx = birds.findIndex((b)=>b.body === birdBody);
-    if (idx >= 0) {
-        birds[idx].launched = true;
-        birds[idx].launchTime = Date.now();
-    }
+// Don't create constraint - we'll handle dragging manually
+// The constraint will only exist during rendering for visual
 }
 function addStableBlock(x, y, w, h, type, health) {
     const densities = {
@@ -1154,7 +1080,6 @@ function addStableBlock(x, y, w, h, type, health) {
         thatch: 0.0007,
         clay: 0.0025
     };
-    // FIXED: Reduced bounciness for blocks
     const body = Bodies.rectangle(x, y, w, h, {
         label: 'block',
         isStatic: true,
@@ -1181,7 +1106,6 @@ function makeBlockDynamic(block) {
     if (!block.isStatic) return;
     Body.setStatic(block.body, false);
     block.isStatic = false;
-    // FIXED: Keep the reduced bounciness when making dynamic
     Body.set(block.body, {
         restitution: 0.2,
         friction: 0.8
@@ -1191,10 +1115,8 @@ function makeBlockDynamic(block) {
         y: block.body.velocity.y + (Math.random() - 0.5) * 2
     });
 }
-// SIGNIFICANTLY INCREASED PIG SIZES: regular pigs from 20 to 50, boss pigs from 25 to 60
 function addPig(x, y, health, isBoss) {
     const radius = isBoss ? 60 : 50;
-    // FIXED: Reduced bounciness for pigs
     const body = Bodies.circle(x, y, radius, {
         label: 'pig',
         restitution: 0.2,
@@ -1215,7 +1137,6 @@ function addPig(x, y, health, isBoss) {
     });
     return body;
 }
-// REAL ANGRY BIRDS DAMAGE: Much more sensitive
 function calculateDamage(impactSpeed, birdType, blockType) {
     let damage = impactSpeed * 1.2;
     const birdModifiers = {
@@ -1255,7 +1176,6 @@ function updateBlockDamageState(block) {
     else if (healthRatio > 0.1) block.damageState = 'broken';
     else block.damageState = 'destroyed';
 }
-// LAG FIX: Optimized collision handling
 function handleCollision(event) {
     const pairs = event.pairs;
     for (const pair of pairs){
@@ -1267,16 +1187,13 @@ function handleCollision(event) {
             y: bodyA.velocity.y - bodyB.velocity.y
         };
         const impactSpeed = Math.hypot(relV.x, relV.y);
-        // REAL ANGRY BIRDS: Blocks take damage from any impact
         if (bodyA.label === 'block' && bodyB.label === 'bird' || bodyB.label === 'block' && bodyA.label === 'bird') {
             const blockBody = bodyA.label === 'block' ? bodyA : bodyB;
             const birdBody = bodyA.label === 'bird' ? bodyA : bodyB;
             const block = blocks.find((b)=>b.body === blockBody);
             const bird = birds.find((b)=>b.body === birdBody);
             if (block && bird) {
-                // Make block dynamic immediately (Angry Birds style)
                 if (block.isStatic) makeBlockDynamic(block);
-                // Damage on any impact
                 const damage = calculateDamage(Math.max(impactSpeed, 2), bird.type, block.type);
                 block.health -= damage;
                 updateBlockDamageState(block);
@@ -1293,7 +1210,6 @@ function handleCollision(event) {
                 } catch (e) {}
             }
         }
-        // Pig collisions
         if (bodyA.label === 'pig' && bodyB.label === 'block' || bodyB.label === 'pig' && bodyA.label === 'block') {
             const pigBody = bodyA.label === 'pig' ? bodyA : bodyB;
             const blockBody = bodyA.label === 'pig' ? bodyB : bodyA;
@@ -1312,7 +1228,6 @@ function handleCollision(event) {
                 } catch (e) {}
             }
         }
-        // Bird vs Pig collisions
         if (bodyA.label === 'pig' && bodyB.label === 'bird' || bodyB.label === 'pig' && bodyA.label === 'bird') {
             const pigBody = bodyA.label === 'pig' ? bodyA : bodyB;
             const birdBody = bodyA.label === 'pig' ? bodyB : bodyA;
@@ -1341,7 +1256,6 @@ function handleCollision(event) {
                 } catch (e) {}
             }
         }
-        // Block vs Block collisions
         if (bodyA.label === 'block' && bodyB.label === 'block') {
             const blockA = blocks.find((b)=>b.body === bodyA);
             const blockB = blocks.find((b)=>b.body === bodyB);
@@ -1359,7 +1273,6 @@ function handleCollision(event) {
         }
     }
 }
-// LAG FIX: Reduced particle effects
 function createDamageEffect(x, y, intensity, material) {
     const particleCount = Math.min(Math.floor(intensity * 2), 6);
     for(let i = 0; i < particleCount; i++){
@@ -1479,7 +1392,6 @@ function getBlockColor(type) {
             return '#999';
     }
 }
-// Helper function for original pig rendering (fallback)
 function drawOriginalPig(pig, r) {
     ctx.fillStyle = pig.isBoss ? '#FF6B6B' : '#81C784';
     ctx.beginPath();
@@ -1523,10 +1435,8 @@ function drawOriginalPig(pig, r) {
         ctx.fill();
     }
 }
-// REAL ANGRY BIRDS: Low health values for easy destruction
 function buildAssamHouse(x) {
     const baseY = STRUCTURE_BASE_Y;
-    // Increased platform width to accommodate larger pigs
     const platform = Bodies.rectangle(x, baseY, 450, 30, {
         isStatic: true,
         label: 'platform',
@@ -1534,7 +1444,6 @@ function buildAssamHouse(x) {
         restitution: 0.1
     });
     World.add(world, platform);
-    // Increased spacing between blocks for larger pigs
     addStableBlock(x - 90, baseY - 20, 40, 30, 'clay', 3);
     addStableBlock(x - 45, baseY - 20, 40, 30, 'clay', 3);
     addStableBlock(x, baseY - 20, 40, 30, 'clay', 3);
@@ -1552,7 +1461,6 @@ function buildAssamHouse(x) {
     addStableBlock(x, baseY - 145, 240, 20, 'thatch', 1);
     addStableBlock(x, baseY - 155, 60, 15, 'wood', 2);
     addStableBlock(x, baseY - 30, 80, 30, 'wood', 3);
-    // Adjusted pig positions for larger size
     addPig(x - 35, baseY - 60, 5, false);
     addPig(x + 35, baseY - 60, 5, false);
     addPig(x, baseY - 100, 5, false);
@@ -1560,7 +1468,6 @@ function buildAssamHouse(x) {
 }
 function buildTwoStory(x) {
     const baseY = STRUCTURE_BASE_Y;
-    // Increased platform width
     const platform = Bodies.rectangle(x, baseY, 500, 30, {
         isStatic: true,
         label: 'platform',
@@ -1583,7 +1490,6 @@ function buildTwoStory(x) {
     addStableBlock(x + 90, baseY - 120, 30, 35, 'glass', 1);
     addStableBlock(x, baseY - 85, 170, 15, 'wood', 2);
     addStableBlock(x, baseY - 225, 260, 20, 'wood', 2);
-    // Adjusted pig positions for larger size
     addPig(x - 90, baseY - 45, 6, false);
     addPig(x + 90, baseY - 45, 6, false);
     addPig(x - 70, baseY - 115, 6, false);
@@ -1592,7 +1498,6 @@ function buildTwoStory(x) {
 }
 function buildThreeStory(x) {
     const baseY = STRUCTURE_BASE_Y;
-    // Increased platform width
     const platform = Bodies.rectangle(x, baseY, 550, 30, {
         isStatic: true,
         label: 'platform',
@@ -1619,7 +1524,6 @@ function buildThreeStory(x) {
     addStableBlock(x - 70, baseY - 215, 28, 35, 'glass', 1);
     addStableBlock(x + 70, baseY - 215, 28, 35, 'glass', 1);
     addStableBlock(x, baseY - 350, 220, 20, 'wood', 2);
-    // Adjusted pig positions for larger size
     addPig(x - 100, baseY - 50, 8, false);
     addPig(x + 100, baseY - 50, 8, false);
     addPig(x - 80, baseY - 130, 8, false);
@@ -1628,7 +1532,6 @@ function buildThreeStory(x) {
 }
 function buildFinalLevel(x) {
     const baseY = STRUCTURE_BASE_Y;
-    // Increased platform width
     const platform = Bodies.rectangle(x, baseY, 600, 30, {
         isStatic: true,
         label: 'platform',
@@ -1647,7 +1550,6 @@ function buildFinalLevel(x) {
     addStableBlock(x - 70, baseY - 200, 30, 80, 'stone', 3);
     addStableBlock(x + 70, baseY - 200, 30, 80, 'stone', 3);
     addStableBlock(x, baseY - 240, 180, 25, 'stone', 2);
-    // Adjusted pig positions for larger size
     addPig(x - 180, baseY - 120, 8, false);
     addPig(x + 180, baseY - 120, 8, false);
     addPig(x - 90, baseY - 50, 8, false);
@@ -1663,12 +1565,13 @@ let slingAnchor = {
     x: 170,
     y: 0
 };
+// FIXED: PERFECT WORLD BUILDING
 function buildWorld() {
+    console.trace('buildWorld() called from:');
     WORLD_W = window.innerWidth;
     WORLD_H = window.innerHeight;
     STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-    // KEEP BIRD RADIUS AT 25 (good size)
-    BIRD_RADIUS = Math.max(20, Math.min(28, Math.floor(Math.min(WORLD_W, WORLD_H) * 0.03)));
+    BIRD_RADIUS = 25;
     slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
     slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
     activeParticles.forEach((particle)=>{
@@ -1687,20 +1590,17 @@ function buildWorld() {
     if (scoreEl) scoreEl.textContent = `Score: ${score}`;
     if (levelEl) levelEl.textContent = `Level: ${currentLevel}`;
     advanceTimer = 0;
-    dragging = false;
     createBackground();
-    // Load images if not already loaded
     if (!imagesLoaded) loadImages().then((success)=>{
         console.log('Image loading completed:', success ? 'Success' : 'Failed');
     }).catch((error)=>{
         console.error('Image loading error:', error);
     });
-    // FIXED: Ground with less bounciness
     ground = Bodies.rectangle(WORLD_W / 2, WORLD_H - GROUND_HEIGHT / 2, WORLD_W * 3, GROUND_HEIGHT, {
         isStatic: true,
         label: 'ground',
         friction: 0.9,
-        restitution: 0.1 // Reduced bounciness
+        restitution: 0.1
     });
     leftWall = Bodies.rectangle(-50, WORLD_H / 2, 100, WORLD_H * 3, {
         isStatic: true,
@@ -1738,8 +1638,11 @@ function buildWorld() {
             buildAssamHouse(structureX);
             break;
     }
+    // UPDATED: More birds per level
     const birdTypesList = [
         [
+            'red',
+            'red',
             'red',
             'red',
             'red'
@@ -1748,7 +1651,8 @@ function buildWorld() {
             'red',
             'blue',
             'red',
-            'blue'
+            'blue',
+            'red'
         ],
         [
             'red',
@@ -1762,8 +1666,9 @@ function buildWorld() {
             'blue',
             'yellow',
             'blue',
-            'yellow'
-        ]
+            'yellow',
+            'red'
+        ] // Level 4: 6 birds
     ];
     const birdTypes = birdTypesList[currentLevel - 1] || [
         'red',
@@ -1775,8 +1680,10 @@ function buildWorld() {
     Events.off(engine, 'collisionStart');
     Events.on(engine, 'collisionStart', handleCollision);
 }
+// FIXED: Auto-advance to next bird
 function autoAdvance() {
     if (gameState !== 'playing') return;
+    // Check pig fall damage (keep this part as is)
     for(let i = pigs.length - 1; i >= 0; i--){
         const pig = pigs[i];
         const fallDistance = pig.body.position.y - pig.lastY;
@@ -1792,6 +1699,7 @@ function autoAdvance() {
         }
         if (pig.body) pig.lastY = pig.body.position.y;
     }
+    // Check if level is complete
     if (pigs.length === 0) {
         console.log(`Level ${currentLevel} completed! No pigs left.`);
         setTimeout(()=>{
@@ -1799,6 +1707,7 @@ function autoAdvance() {
         }, 1000);
         return;
     }
+    // Clean up old birds
     const now = Date.now();
     for(let i = birds.length - 1; i >= 0; i--){
         const b = birds[i];
@@ -1809,115 +1718,140 @@ function autoAdvance() {
             else if (i < currentBirdIndex) currentBirdIndex--;
         } catch (e) {}
     }
+    // FIXED: Auto-advance to next bird
     const current = birds[currentBirdIndex];
-    if (!current || current.launched) {
+    if (current && current.launched) {
+        const speed = Math.hypot(current.body.velocity.x, current.body.velocity.y);
+        const isOutOfBounds = current.body.position.x < -100 || current.body.position.x > WORLD_W + 100 || current.body.position.y > WORLD_H + 100;
+        // Bird has stopped or went out of bounds
+        if (speed < 0.5 || isOutOfBounds) {
+            advanceTimer++;
+            // Wait a bit before attaching next bird
+            if (advanceTimer > 60) {
+                const nextIndex = birds.findIndex((b)=>!b.launched);
+                if (nextIndex >= 0) {
+                    console.log(`Advancing to bird ${nextIndex + 1}`);
+                    currentBirdIndex = nextIndex;
+                    attachBirdToSling(currentBirdIndex);
+                    advanceTimer = 0;
+                } else // All birds used, check game over
+                if (advanceTimer > 180 && pigs.length > 0) {
+                    console.log('All birds used, pigs remain - GAME OVER');
+                    showGameOver();
+                    advanceTimer = 0;
+                }
+            }
+        } else // Bird still moving, reset timer
+        advanceTimer = 0;
+    } else if (!current) {
+        // No current bird, try to find one
         const nextIndex = birds.findIndex((b)=>!b.launched);
         if (nextIndex >= 0) {
             currentBirdIndex = nextIndex;
             attachBirdToSling(currentBirdIndex);
-            advanceTimer = 0;
-        } else if (birds.every((b)=>b.launched)) {
-            advanceTimer++;
-            if (advanceTimer > 180) {
-                if (pigs.length > 0) showGameOver();
-                advanceTimer = 0;
-            }
         }
-        return;
     }
-    advanceTimer = 0;
 }
-function clientToWorld(clientX, clientY) {
-    const rect = canvas.getBoundingClientRect();
-    const x = (clientX - rect.left) * (WORLD_W / rect.width);
-    const y = (clientY - rect.top) * (WORLD_H / rect.height);
-    return {
-        x,
-        y
-    };
-}
-let dragStartTime = 0;
+// ========== WORKING SLINGSHOT SYSTEM ==========
+let isDragging = false;
 canvas.addEventListener('pointerdown', (ev)=>{
     if (gameState !== 'playing') return;
-    const p = clientToWorld(ev.clientX, ev.clientY);
     const current = birds[currentBirdIndex];
     if (!current || current.launched) return;
-    const d = Math.hypot(p.x - current.body.position.x, p.y - current.body.position.y);
-    if (d < BIRD_RADIUS * 3) {
-        dragging = true;
-        dragStartTime = Date.now();
-        ev.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = ev.clientX - rect.left;
+    const mouseY = ev.clientY - rect.top;
+    const distToBird = Math.hypot(mouseX - current.body.position.x, mouseY - current.body.position.y);
+    if (distToBird < BIRD_RADIUS * 3) {
+        isDragging = true;
+        // Remove the elastic constraint so we can drag freely
         if (slingConstraint) {
-            try {
-                World.remove(world, slingConstraint);
-            } catch (e) {}
+            World.remove(world, slingConstraint);
             slingConstraint = null;
         }
         canvas.style.cursor = 'grabbing';
+        ev.preventDefault();
     }
 });
 canvas.addEventListener('pointermove', (ev)=>{
-    if (!dragging || gameState !== 'playing') return;
-    ev.preventDefault();
-    const p = clientToWorld(ev.clientX, ev.clientY);
+    if (!isDragging || gameState !== 'playing') return;
     const current = birds[currentBirdIndex];
     if (!current) return;
-    let dx = p.x - slingAnchor.x;
-    let dy = p.y - slingAnchor.y;
-    const dist = Math.hypot(dx, dy);
-    const maxPull = 150;
-    if (dist > maxPull) {
-        dx = dx / dist * maxPull;
-        dy = dy / dist * maxPull;
+    const rect = canvas.getBoundingClientRect();
+    const mouseX = ev.clientX - rect.left;
+    const mouseY = ev.clientY - rect.top;
+    // Calculate drag position relative to anchor
+    let dragX = mouseX - slingAnchor.x;
+    let dragY = mouseY - slingAnchor.y;
+    const dragDist = Math.hypot(dragX, dragY);
+    // Limit drag distance
+    const maxDrag = 150;
+    if (dragDist > maxDrag) {
+        dragX = dragX / dragDist * maxDrag;
+        dragY = dragY / dragDist * maxDrag;
     }
-    if (dx > 25) dx = 25;
-    if (dy < -maxPull * 0.8) dy = -maxPull * 0.8;
-    const targetX = slingAnchor.x + dx;
-    const targetY = slingAnchor.y + dy;
-    const smoothFactor = 0.7;
-    const newX = current.body.position.x + (targetX - current.body.position.x) * smoothFactor;
-    const newY = current.body.position.y + (targetY - current.body.position.y) * smoothFactor;
+    // Don't let bird go too far forward (right)
+    if (dragX > 30) dragX = 30;
+    // Move the bird
     Body.setPosition(current.body, {
-        x: newX,
-        y: newY
+        x: slingAnchor.x + dragX,
+        y: slingAnchor.y + dragY
     });
-    Body.setVelocity(current.body, {
-        x: 0,
-        y: 0
-    });
-    Body.setAngularVelocity(current.body, 0);
+    ev.preventDefault();
 });
 canvas.addEventListener('pointerup', (ev)=>{
-    if (!dragging || gameState !== 'playing') return;
-    ev.preventDefault();
+    if (!isDragging || gameState !== 'playing') return;
     const current = birds[currentBirdIndex];
-    if (current) {
-        slingConstraint = Constraint.create({
-            pointA: {
-                x: slingAnchor.x,
-                y: slingAnchor.y
-            },
-            bodyB: current.body,
-            stiffness: 0.05,
-            damping: 0.08,
-            length: 0,
-            render: {
-                visible: false
-            }
-        });
-        Composite.add(world, slingConstraint);
+    if (!current) {
+        isDragging = false;
+        return;
     }
-    dragging = false;
+    const dragX = current.body.position.x - slingAnchor.x;
+    const dragY = current.body.position.y - slingAnchor.y;
+    const dragDist = Math.hypot(dragX, dragY);
+    if (dragDist > 15) {
+        // LAUNCH!
+        current.launched = true;
+        current.launchTime = Date.now();
+        // EVEN MORE POWER!
+        const launchPower = 0.22; // Increased from 0.15 to 0.22
+        const velX = -dragX * launchPower;
+        const velY = -dragY * launchPower;
+        // Make sure bird is dynamic
+        Body.setStatic(current.body, false);
+        // Apply velocity
+        Body.setVelocity(current.body, {
+            x: velX,
+            y: velY
+        });
+        // Higher max speed
+        const speed = Body.getSpeed(current.body);
+        if (speed > 75) Body.setSpeed(current.body, 75);
+        console.log('LAUNCHED! Velocity:', velX.toFixed(2), velY.toFixed(2), 'Speed:', speed.toFixed(2));
+    } else {
+        // Drag was too small, snap back
+        Body.setPosition(current.body, {
+            x: slingAnchor.x,
+            y: slingAnchor.y
+        });
+        attachBirdToSling(currentBirdIndex);
+    }
+    isDragging = false;
     canvas.style.cursor = 'default';
-    const dragDuration = Date.now() - dragStartTime;
-    if (dragDuration > 1000) setTimeout(()=>releaseBirdFromSling(), 50);
-    else releaseBirdFromSling();
+    ev.preventDefault();
 });
 canvas.addEventListener('pointercancel', (ev)=>{
-    if (dragging && gameState === 'playing') {
-        dragging = false;
+    if (isDragging) {
+        const current = birds[currentBirdIndex];
+        if (current) {
+            Body.setPosition(current.body, {
+                x: slingAnchor.x,
+                y: slingAnchor.y
+            });
+            attachBirdToSling(currentBirdIndex);
+        }
+        isDragging = false;
         canvas.style.cursor = 'default';
-        releaseBirdFromSling();
     }
 });
 function renderFrame() {
@@ -2041,46 +1975,31 @@ function renderFrame() {
         ctx.strokeRect(-w / 2, -h / 2, w, h);
         ctx.restore();
     }
-    // RENDER PIGS (with friend faces based on level and boss status)
+    // RENDER PIGS
     for (const pig of pigs){
         const p = pig.body;
         ctx.save();
         ctx.translate(p.position.x, p.position.y);
         ctx.rotate(p.angle);
-        // SIGNIFICANTLY INCREASED PIG RADIUS: regular pigs from 20 to 50, boss pigs from 25 to 60
         const r = pig.isBoss ? 60 : 50;
-        // Draw appropriate friend face on pig
         if (imagesLoaded) {
             let pigImage;
-            // Logic for choosing the right image
             if (pig.isBoss) {
-                // Boss pigs - different friends for different levels
-                if (currentLevel === 3) pigImage = friend3Image; // Level 3 boss
-                else if (currentLevel === 4) pigImage = friend4Image; // Level 4 boss
-                else pigImage = friend2Image; // Fallback for any other bosses
-            } else // Regular pigs - always friend 2
-            pigImage = friend2Image;
+                if (currentLevel === 3) pigImage = friend3Image;
+                else if (currentLevel === 4) pigImage = friend4Image;
+                else pigImage = friend2Image;
+            } else pigImage = friend2Image;
             if (pigImage && pigImage.complete) {
                 ctx.beginPath();
                 ctx.arc(0, 0, r, 0, Math.PI * 2);
                 ctx.clip();
-                // Draw the face image
                 ctx.drawImage(pigImage, -r, -r, r * 2, r * 2);
-                // Reset clipping
                 ctx.restore();
                 ctx.save();
                 ctx.translate(p.position.x, p.position.y);
                 ctx.rotate(p.angle);
-            } else {
-                // Fallback to original pig colors
-                console.log('Pig image not complete, using fallback');
-                drawOriginalPig(pig, r);
-            }
-        } else {
-            // Fallback to original pig colors
-            console.log('Images not loaded, using original pig');
-            drawOriginalPig(pig, r);
-        }
+            } else drawOriginalPig(pig, r);
+        } else drawOriginalPig(pig, r);
         // Health bar
         const healthColor = pig.health > pig.maxHealth * 0.5 ? '#4CAF50' : pig.health > 1 ? '#FF9800' : '#F44336';
         ctx.fillStyle = healthColor;
@@ -2109,63 +2028,77 @@ function renderFrame() {
     ctx.fillRect(-8, -80, 16, 80);
     ctx.strokeRect(-8, -80, 16, 80);
     ctx.restore();
-    if (slingConstraint && slingConstraint.bodyB && !dragging) {
-        const bp = slingConstraint.bodyB.position;
-        const leftX = sx - 28;
-        const rightX = sx + 28;
-        const topY = sy - 10;
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = 'rgba(93,64,55,0.7)';
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(leftX, topY);
-        ctx.lineTo(bp.x, bp.y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(rightX, topY);
-        ctx.lineTo(bp.x, bp.y);
-        ctx.stroke();
-    }
-    if (dragging) {
+    // UPDATED: RENDER SLINGSHOT BANDS - Tighter and more visible
+    if (isDragging) {
         const current = birds[currentBirdIndex];
         if (current) {
             const bp = current.body.position;
             const leftX = sx - 28;
             const rightX = sx + 28;
             const topY = sy - 10;
+            // Draw thick, tight elastic bands
+            ctx.lineWidth = 8; // Was 6, now thicker
+            ctx.strokeStyle = 'rgba(139,69,19,0.95)'; // Darker brown, more opaque
+            ctx.lineCap = 'round';
+            // Left band
+            ctx.beginPath();
+            ctx.moveTo(leftX, topY);
+            ctx.lineTo(bp.x, bp.y);
+            ctx.stroke();
+            // Right band
+            ctx.beginPath();
+            ctx.moveTo(rightX, topY);
+            ctx.lineTo(bp.x, bp.y);
+            ctx.stroke();
+            // Add highlight for 3D effect
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = 'rgba(160,82,45,0.6)';
+            ctx.beginPath();
+            ctx.moveTo(leftX, topY);
+            ctx.lineTo(bp.x, bp.y);
+            ctx.moveTo(rightX, topY);
+            ctx.lineTo(bp.x, bp.y);
+            ctx.stroke();
+        }
+    } else {
+        // Resting position
+        const current = birds[currentBirdIndex];
+        if (current && !current.launched) {
+            const bp = current.body.position;
+            const leftX = sx - 28;
+            const rightX = sx + 28;
+            const topY = sy - 10;
             ctx.lineWidth = 6;
-            ctx.strokeStyle = 'rgba(93,64,55,0.9)';
+            ctx.strokeStyle = 'rgba(139,69,19,0.8)';
             ctx.lineCap = 'round';
             ctx.beginPath();
             ctx.moveTo(leftX, topY);
             ctx.lineTo(bp.x, bp.y);
-            ctx.lineTo(rightX, topY);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(rightX, topY);
+            ctx.lineTo(bp.x, bp.y);
             ctx.stroke();
         }
     }
-    // RENDER BIRDS (with friend1 faces)
+    // RENDER BIRDS
     for(let i = 0; i < birds.length; i++){
         const br = birds[i];
         const b = br.body;
         ctx.save();
         ctx.translate(b.position.x, b.position.y);
         ctx.rotate(b.angle);
-        const r = BIRD_RADIUS; // Kept at 25 (good size)
-        // Draw friend1 face on bird
+        const r = BIRD_RADIUS;
         if (imagesLoaded && friend1Image && friend1Image.complete) {
             ctx.beginPath();
             ctx.arc(0, 0, r, 0, Math.PI * 2);
             ctx.clip();
-            // Draw the face image
             ctx.drawImage(friend1Image, -r, -r, r * 2, r * 2);
-            // Reset clipping
             ctx.restore();
             ctx.save();
             ctx.translate(b.position.x, b.position.y);
             ctx.rotate(b.angle);
         } else {
-            // Fallback to original bird colors if images not loaded
-            console.log('Bird image not loaded, using fallback colors');
             const fill = br.type === 'red' ? '#DC143C' : br.type === 'blue' ? '#1E90FF' : '#FFD700';
             ctx.fillStyle = fill;
             ctx.beginPath();
@@ -2179,31 +2112,29 @@ function renderFrame() {
         }
         ctx.restore();
     }
-    // Render trajectory line
-    if (dragging) {
+    // UPDATED: TRAJECTORY PREVIEW with matching power
+    if (isDragging) {
         const current = birds[currentBirdIndex];
         if (current) {
-            const birdBody = current.body;
-            const dx = slingAnchor.x - birdBody.position.x;
-            const dy = slingAnchor.y - birdBody.position.y;
-            const dist = Math.hypot(dx, dy);
-            if (dist > 15) {
-                ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+            const dragX = current.body.position.x - slingAnchor.x;
+            const dragY = current.body.position.y - slingAnchor.y;
+            const dragDist = Math.hypot(dragX, dragY);
+            if (dragDist > 15) {
+                const launchPower = 0.22; // Match launch power!
+                const velX = -dragX * launchPower;
+                const velY = -dragY * launchPower;
+                ctx.strokeStyle = 'rgba(255,255,255,0.6)';
                 ctx.setLineDash([
                     5,
                     5
                 ]);
                 ctx.lineWidth = 2;
-                ctx.lineCap = 'round';
                 ctx.beginPath();
-                ctx.moveTo(birdBody.position.x, birdBody.position.y);
-                const power = Math.min(dist / 60, 2.5);
-                const velocityMag = power * 12;
-                const vx = dx / dist * velocityMag;
-                const vy = dy / dist * velocityMag;
-                for(let t = 0; t < 100; t += 3){
-                    const x = birdBody.position.x + vx * t;
-                    const y = birdBody.position.y + vy * t + 0.5 * world.gravity.y * t * t;
+                ctx.moveTo(current.body.position.x, current.body.position.y);
+                // Simulate trajectory
+                for(let t = 0; t < 100; t += 2){
+                    const x = current.body.position.x + velX * t;
+                    const y = current.body.position.y + velY * t + 0.5 * world.gravity.y * t * t;
                     ctx.lineTo(x, y);
                     if (y > WORLD_H - GROUND_HEIGHT) break;
                 }
@@ -2220,11 +2151,8 @@ function renderFrame() {
 })();
 function showMenu() {
     gameState = 'menu';
-    // Stop any playing music when returning to menu
     stopBackgroundMusic();
-    // Reset victory/defeat flag
     isPlayingVictoryOrDefeat = false;
-    // Clean up victory/defeat sounds
     if (victorySound) {
         victorySound.pause();
         victorySound = null;
@@ -2243,7 +2171,6 @@ function showMenu() {
 }
 function showGame() {
     gameState = 'playing';
-    // Reset victory/defeat flag when starting a new game/level
     isPlayingVictoryOrDefeat = false;
     if (menuScreen) menuScreen.style.display = 'none';
     if (gameUI) gameUI.style.display = 'block';
@@ -2252,14 +2179,12 @@ function showGame() {
     if (gameCompletionScreen) gameCompletionScreen.style.display = 'none';
     if (canvas) canvas.style.display = 'block';
     if (muteBtn) muteBtn.style.display = 'block';
-    // PLAY LEVEL MUSIC
     playLevelMusic();
     buildWorld();
 }
 function showLevelComplete() {
     if (gameState !== 'playing') return;
     gameState = 'levelComplete';
-    // STOP LEVEL MUSIC AND PLAY VICTORY SOUND
     stopBackgroundMusic();
     playVictorySound();
     console.log(`Showing level complete screen for level ${currentLevel}`);
@@ -2278,7 +2203,6 @@ function showGameCompletion() {
 function showGameOver() {
     if (gameState !== 'playing') return;
     gameState = 'gameOver';
-    // STOP LEVEL MUSIC AND PLAY DEFEAT SOUND
     stopBackgroundMusic();
     playDefeatSound();
     if (gameOverScreen) gameOverScreen.style.display = 'flex';
@@ -2302,7 +2226,7 @@ function initializeEventListeners() {
         if (currentLevel < 4) {
             currentLevel++;
             console.log(`Moving to level ${currentLevel}`);
-            showGame(); // This will call playLevelMusic() for the new level
+            showGame();
         } else showGameCompletion();
     });
     if (menuFromCompleteBtn) menuFromCompleteBtn.addEventListener('click', ()=>{
@@ -2330,10 +2254,36 @@ function initializeEventListeners() {
     });
     if (muteBtn) muteBtn.addEventListener('click', updateMuteState);
 }
+// FIXED: PERFECT ORIENTATION HANDLING
+function checkOrientation() {
+    const isLandscape = window.innerWidth > window.innerHeight;
+    const rotateMessage = document.getElementById('rotateMessage');
+    if (isLandscape) {
+        document.body.classList.add('landscape-mode');
+        if (rotateMessage) rotateMessage.style.display = 'none';
+    } else {
+        document.body.classList.remove('landscape-mode');
+        if (rotateMessage) rotateMessage.style.display = 'flex';
+    }
+    // Update world dimensions
+    WORLD_W = window.innerWidth;
+    WORLD_H = window.innerHeight;
+    STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
+    // Update sling anchor position for mobile
+    slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
+    slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
+    if (gameState === 'playing') resizeCanvas();
+}
 window.addEventListener('resize', ()=>{
     resizeCanvas();
-    if (gameState === 'playing') buildWorld();
+    // Only update dimensions, don't rebuild world
+    WORLD_W = window.innerWidth;
+    WORLD_H = window.innerHeight;
+    STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
+    slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
+    slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
 });
+window.addEventListener('orientationchange', checkOrientation);
 // LAG FIX: Performance monitoring and cleanup
 setInterval(()=>{
     if (activeParticles.length > MAX_PARTICLES) {
@@ -2354,6 +2304,8 @@ loadImages().then((success)=>{
 // Initialize audio system
 initializeAudio();
 initializeEventListeners();
+resizeCanvas();
+checkOrientation();
 showMenu();
 
 },{"matter-js":"66Tw1","1a510c795eead121":"753ml","47d7fb8c8e573c09":"c1cws","2c3a49e8c959a80e":"5e1u0","d622c60543668346":"2faKj","1aee6bf91e0c65e3":"a9inh","27d171d448d0d5a4":"3v5Ar","24d0b8a428d8046":"66XD9","40f97c6c4ee38379":"1dY1P","7c7fbfd449718126":"6q66P","b2737acdc247a27f":"2HzRv"}],"66Tw1":[function(require,module,exports,__globalThis) {
