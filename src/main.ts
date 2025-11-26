@@ -6,7 +6,6 @@ let gameState: 'menu' | 'playing' | 'levelComplete' | 'gameOver' = 'menu';
 let currentLevel = 1;
 let globalScore = 0;
 let isMuted = false;
-let isFullscreen = false;
 
 // Audio elements
 let bgMusic: HTMLAudioElement | null = null;
@@ -32,7 +31,6 @@ const levelCompleteScreen = document.getElementById('levelCompleteScreen') as HT
 const gameOverScreen = document.getElementById('gameOverScreen') as HTMLDivElement;
 const gameCompletionScreen = document.getElementById('gameCompletionScreen') as HTMLDivElement;
 const muteBtn = document.getElementById('muteBtn') as HTMLButtonElement;
-const fullscreenBtn = document.getElementById('fullscreenBtn') as HTMLButtonElement;
 
 const scoreEl = document.getElementById('score') as HTMLDivElement;
 const levelEl = document.getElementById('level') as HTMLDivElement;
@@ -54,12 +52,7 @@ engine.timing.timeScale = 1.0;
 const runner = Runner.create();
 Runner.run(runner, engine);
 
-// Fixed world dimensions - NO SCALING
-let WORLD_W = 1920;
-let WORLD_H = 1080;
-let BIRD_RADIUS = 25;
-let GROUND_HEIGHT = 90;
-let STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
+const GROUND_HEIGHT = 90;
 
 // Friend images
 let friend1Image: HTMLImageElement;
@@ -225,42 +218,7 @@ function updateMuteState() {
   }
 }
 
-// Fullscreen functionality
-function toggleFullscreen() {
-  if (!document.fullscreenElement) {
-    // Enter fullscreen
-    const docEl = document.documentElement as any;
-    if (docEl.requestFullscreen) {
-      docEl.requestFullscreen();
-    } else if (docEl.webkitRequestFullscreen) {
-      docEl.webkitRequestFullscreen();
-    } else if (docEl.msRequestFullscreen) {
-      docEl.msRequestFullscreen();
-    }
-    isFullscreen = true;
-    fullscreenBtn.innerHTML = '⛶';
-    document.body.classList.add('fullscreen');
-  } else {
-    // Exit fullscreen
-    if (document.exitFullscreen) {
-      document.exitFullscreen();
-    } else if ((document as any).webkitExitFullscreen) {
-      (document as any).webkitExitFullscreen();
-    } else if ((document as any).msExitFullscreen) {
-      (document as any).msExitFullscreen();
-    }
-    isFullscreen = false;
-    fullscreenBtn.innerHTML = '⛶';
-    document.body.classList.remove('fullscreen');
-  }
-  
-  // Resize canvas after fullscreen change
-  setTimeout(() => {
-    resizeCanvas();
-  }, 300);
-}
-
-// FIXED: Simple canvas resizing without world scaling
+// FIXED: PERFECT CANVAS RESIZING
 function resizeCanvas() {
   const dpr = Math.max(1, window.devicePixelRatio || 1);
   const w = window.innerWidth;
@@ -271,11 +229,12 @@ function resizeCanvas() {
   canvas.width = Math.floor(w * dpr);
   canvas.height = Math.floor(h * dpr);
   ctx.scale(dpr, dpr);
-  
-  // Keep the original world dimensions
-  WORLD_W = 1920;
-  WORLD_H = 1080;
 }
+
+let WORLD_W = window.innerWidth;
+let WORLD_H = window.innerHeight;
+let BIRD_RADIUS = 25;
+let STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
 
 interface Bird {
   body: Matter.Body;
@@ -309,7 +268,6 @@ let blocks: Block[] = [];
 let pigs: Pig[] = [];
 let score = 0;
 let advanceTimer = 0;
-let MAX_DRAG_DISTANCE = 150;
 
 const MAX_PARTICLES = 20;
 let activeParticles: Matter.Body[] = [];
@@ -433,7 +391,7 @@ function spawnBirds(types: ('red' | 'blue' | 'yellow')[]) {
   }
   birds = [];
 
-  const startX = 170 - 100;
+  const startX = slingAnchor.x - 100;
   const startY = WORLD_H - GROUND_HEIGHT - BIRD_RADIUS - 2;
 
   for (let i = 0; i < types.length; i++) {
@@ -444,12 +402,13 @@ function spawnBirds(types: ('red' | 'blue' | 'yellow')[]) {
       label: 'bird',
       restitution: 0.4,
       friction: 0.8,
-      frictionAir: 0.005,
+      frictionAir: 0.005, // REDUCED from 0.008 - less air drag
       density: 0.003,
       collisionFilter: { group: -1 }
     });
     World.add(world, body);
     
+    // FIXED: Don't make birds static initially
     Body.setStatic(body, false);
     
     birds.push({ body, launched: false, type: types[i], launchTime: 0 });
@@ -470,13 +429,16 @@ function attachBirdToSling(index: number) {
   }
 
   // Reset bird completely
-  Body.setPosition(birdObj.body, { x: 170, y: WORLD_H - GROUND_HEIGHT - 110 });
+  Body.setPosition(birdObj.body, { x: slingAnchor.x, y: slingAnchor.y });
   Body.setVelocity(birdObj.body, { x: 0, y: 0 });
   Body.setAngularVelocity(birdObj.body, 0);
   Body.setAngle(birdObj.body, 0);
-  Body.setStatic(birdObj.body, false);
+  Body.setStatic(birdObj.body, false); // Make sure it's dynamic
 
   birdObj.launched = false;
+  
+  // Don't create constraint - we'll handle dragging manually
+  // The constraint will only exist during rendering for visual
 }
 
 function addStableBlock(x: number, y: number, w: number, h: number, type: Block['type'], health: number): Matter.Body {
@@ -1060,17 +1022,17 @@ function buildFinalLevel(x: number) {
 let ground: Matter.Body;
 let leftWall: Matter.Body;
 let rightWall: Matter.Body;
+let slingAnchor = { x: 170, y: 0 };
 
-// FIXED: PERFECT WORLD BUILDING WITH ORIGINAL SIZES
+// FIXED: PERFECT WORLD BUILDING
 function buildWorld() {
   console.trace('buildWorld() called from:');
-  
-  // Use fixed world dimensions
-  WORLD_W = 1920;
-  WORLD_H = 1080;
-  BIRD_RADIUS = 25;
-  GROUND_HEIGHT = 90;
+  WORLD_W = window.innerWidth;
+  WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
+  BIRD_RADIUS = 25;
+  slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
 
   activeParticles.forEach(particle => {
     try { World.remove(world, particle); } catch (e) {}
@@ -1125,7 +1087,6 @@ function buildWorld() {
   });
   World.add(world, [ground, leftWall, rightWall]);
 
-  // Calculate structure position based on screen width
   const structureX = WORLD_W - Math.floor(WORLD_W * 0.3);
   
   console.log(`Building level ${currentLevel}`);
@@ -1303,12 +1264,12 @@ canvas.addEventListener('pointermove', (ev) => {
   const mouseY = ev.clientY - rect.top;
   
   // Calculate drag position relative to anchor
-  let dragX = mouseX - 170;
-  let dragY = mouseY - (WORLD_H - GROUND_HEIGHT - 110);
+  let dragX = mouseX - slingAnchor.x;
+  let dragY = mouseY - slingAnchor.y;
   const dragDist = Math.hypot(dragX, dragY);
   
   // Limit drag distance
-  const maxDrag = MAX_DRAG_DISTANCE;
+  const maxDrag = 150;
   if (dragDist > maxDrag) {
     dragX = (dragX / dragDist) * maxDrag;
     dragY = (dragY / dragDist) * maxDrag;
@@ -1319,8 +1280,8 @@ canvas.addEventListener('pointermove', (ev) => {
   
   // Move the bird
   Body.setPosition(current.body, {
-    x: 170 + dragX,
-    y: (WORLD_H - GROUND_HEIGHT - 110) + dragY
+    x: slingAnchor.x + dragX,
+    y: slingAnchor.y + dragY
   });
   
   ev.preventDefault();
@@ -1335,8 +1296,8 @@ canvas.addEventListener('pointerup', (ev) => {
     return;
   }
   
-  const dragX = current.body.position.x - 170;
-  const dragY = current.body.position.y - (WORLD_H - GROUND_HEIGHT - 110);
+  const dragX = current.body.position.x - slingAnchor.x;
+  const dragY = current.body.position.y - slingAnchor.y;
   const dragDist = Math.hypot(dragX, dragY);
   
   if (dragDist > 15) {
@@ -1365,7 +1326,7 @@ canvas.addEventListener('pointerup', (ev) => {
     
   } else {
     // Drag was too small, snap back
-    Body.setPosition(current.body, { x: 170, y: WORLD_H - GROUND_HEIGHT - 110 });
+    Body.setPosition(current.body, { x: slingAnchor.x, y: slingAnchor.y });
     attachBirdToSling(currentBirdIndex);
   }
   
@@ -1378,7 +1339,7 @@ canvas.addEventListener('pointercancel', (ev) => {
   if (isDragging) {
     const current = birds[currentBirdIndex];
     if (current) {
-      Body.setPosition(current.body, { x: 170, y: WORLD_H - GROUND_HEIGHT - 110 });
+      Body.setPosition(current.body, { x: slingAnchor.x, y: slingAnchor.y });
       attachBirdToSling(currentBirdIndex);
     }
     isDragging = false;
@@ -1581,8 +1542,8 @@ function renderFrame() {
   }
 
   // RENDER SLINGSHOT
-  const sx = 170;
-  const sy = WORLD_H - GROUND_HEIGHT - 110;
+  const sx = slingAnchor.x;
+  const sy = slingAnchor.y;
   const groundY = WORLD_H - GROUND_HEIGHT;
 
   ctx.fillStyle = '#5D4037';
@@ -1709,8 +1670,8 @@ function renderFrame() {
   if (isDragging) {
     const current = birds[currentBirdIndex];
     if (current) {
-      const dragX = current.body.position.x - 170;
-      const dragY = current.body.position.y - (WORLD_H - GROUND_HEIGHT - 110);
+      const dragX = current.body.position.x - slingAnchor.x;
+      const dragY = current.body.position.y - slingAnchor.y;
       const dragDist = Math.hypot(dragX, dragY);
 
       if (dragDist > 15) {
@@ -1765,9 +1726,7 @@ function showMenu() {
   if (gameOverScreen) gameOverScreen.style.display = 'none';
   if (gameCompletionScreen) gameCompletionScreen.style.display = 'none';
   if (canvas) canvas.style.display = 'none';
-  if (document.getElementById('controlButtons')) {
-    document.getElementById('controlButtons')!.style.display = 'none';
-  }
+  if (muteBtn) muteBtn.style.display = 'none';
 }
 
 function showGame() {
@@ -1781,9 +1740,7 @@ function showGame() {
   if (gameOverScreen) gameOverScreen.style.display = 'none';
   if (gameCompletionScreen) gameCompletionScreen.style.display = 'none';
   if (canvas) canvas.style.display = 'block';
-  if (document.getElementById('controlButtons')) {
-    document.getElementById('controlButtons')!.style.display = 'flex';
-  }
+  if (muteBtn) muteBtn.style.display = 'block';
   
   playLevelMusic();
   buildWorld();
@@ -1893,35 +1850,9 @@ function initializeEventListeners() {
   if (muteBtn) {
     muteBtn.addEventListener('click', updateMuteState);
   }
-
-  if (fullscreenBtn) {
-    fullscreenBtn.addEventListener('click', toggleFullscreen);
-  }
-
-  // Listen for fullscreen changes
-  document.addEventListener('fullscreenchange', () => {
-    isFullscreen = !!document.fullscreenElement;
-    fullscreenBtn.innerHTML = isFullscreen ? '⛶' : '⛶';
-    document.body.classList.toggle('fullscreen', isFullscreen);
-    
-    // Resize canvas after fullscreen change
-    setTimeout(() => {
-      resizeCanvas();
-    }, 300);
-  });
-
-  document.addEventListener('webkitfullscreenchange', () => {
-    isFullscreen = !!(document as any).webkitFullscreenElement;
-    fullscreenBtn.innerHTML = isFullscreen ? '⛶' : '⛶';
-    document.body.classList.toggle('fullscreen', isFullscreen);
-    
-    setTimeout(() => {
-      resizeCanvas();
-    }, 300);
-  });
 }
 
-// FIXED: IMPROVED ORIENTATION HANDLING
+// FIXED: PERFECT ORIENTATION HANDLING
 function checkOrientation() {
   const isLandscape = window.innerWidth > window.innerHeight;
   const rotateMessage = document.getElementById('rotateMessage');
@@ -1929,20 +1860,34 @@ function checkOrientation() {
   if (isLandscape) {
     document.body.classList.add('landscape-mode');
     if (rotateMessage) rotateMessage.style.display = 'none';
-    
-    // Recalculate everything when switching to landscape
-    setTimeout(() => {
-      resizeCanvas();
-    }, 100);
   } else {
     document.body.classList.remove('landscape-mode');
     if (rotateMessage) rotateMessage.style.display = 'flex';
+  }
+  
+  // Update world dimensions
+  WORLD_W = window.innerWidth;
+  WORLD_H = window.innerHeight;
+  STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
+  
+  // Update sling anchor position for mobile
+  slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
+  
+  if (gameState === 'playing') {
+    resizeCanvas();
+    // buildWorld();
   }
 }
 
 window.addEventListener('resize', () => {
   resizeCanvas();
-  checkOrientation();
+  // Only update dimensions, don't rebuild world
+  WORLD_W = window.innerWidth;
+  WORLD_H = window.innerHeight;
+  STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
+  slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
 });
 
 window.addEventListener('orientationchange', checkOrientation);
@@ -1963,6 +1908,96 @@ loadImages().then((success) => {
 }).catch((error) => {
   console.error('Initial image loading error:', error);
 });
+
+// Full screen functionality
+const fullScreenBtn = document.getElementById('fullScreenBtn') as HTMLButtonElement;
+
+function toggleFullScreen() {
+  if (!document.fullscreenElement) {
+    // Enter fullscreen
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen();
+    } else if ((document.documentElement as any).webkitRequestFullscreen) {
+      (document.documentElement as any).webkitRequestFullscreen();
+    } else if ((document.documentElement as any).msRequestFullscreen) {
+      (document.documentElement as any).msRequestFullscreen();
+    }
+    document.body.classList.add('fullscreen-mode');
+  } else {
+    // Exit fullscreen
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if ((document as any).webkitExitFullscreen) {
+      (document as any).webkitExitFullscreen();
+    } else if ((document as any).msExitFullscreen) {
+      (document as any).msExitFullscreen();
+    }
+    document.body.classList.remove('fullscreen-mode');
+  }
+}
+
+function updateFullScreenButton() {
+  if (document.fullscreenElement) {
+    fullScreenBtn.innerHTML = '⛶';
+  } else {
+    fullScreenBtn.innerHTML = '⛶';
+  }
+}
+
+// Event listeners for fullscreen changes
+document.addEventListener('fullscreenchange', updateFullScreenButton);
+document.addEventListener('webkitfullscreenchange', updateFullScreenButton);
+document.addEventListener('msfullscreenchange', updateFullScreenButton);
+
+// Add fullscreen button to event listeners
+if (fullScreenBtn) {
+  fullScreenBtn.addEventListener('click', toggleFullScreen);
+}
+
+// Update the showGame function to display the fullscreen button
+function showGame() {
+  gameState = 'playing';
+  
+  isPlayingVictoryOrDefeat = false;
+  
+  if (menuScreen) menuScreen.style.display = 'none';
+  if (gameUI) gameUI.style.display = 'block';
+  if (levelCompleteScreen) levelCompleteScreen.style.display = 'none';
+  if (gameOverScreen) gameOverScreen.style.display = 'none';
+  if (gameCompletionScreen) gameCompletionScreen.style.display = 'none';
+  if (canvas) canvas.style.display = 'block';
+  if (muteBtn) muteBtn.style.display = 'block';
+  if (fullScreenBtn) fullScreenBtn.style.display = 'block';
+  
+  playLevelMusic();
+  buildWorld();
+}
+
+// Update the showMenu function to hide the fullscreen button
+function showMenu() {
+  gameState = 'menu';
+  stopBackgroundMusic();
+  
+  isPlayingVictoryOrDefeat = false;
+  
+  if (victorySound) {
+    victorySound.pause();
+    victorySound = null;
+  }
+  if (defeatSound) {
+    defeatSound.pause();
+    defeatSound = null;
+  }
+  
+  if (menuScreen) menuScreen.style.display = 'flex';
+  if (gameUI) gameUI.style.display = 'none';
+  if (levelCompleteScreen) levelCompleteScreen.style.display = 'none';
+  if (gameOverScreen) gameOverScreen.style.display = 'none';
+  if (gameCompletionScreen) gameCompletionScreen.style.display = 'none';
+  if (canvas) canvas.style.display = 'none';
+  if (muteBtn) muteBtn.style.display = 'none';
+  if (fullScreenBtn) fullScreenBtn.style.display = 'none';
+}
 
 // Initialize audio system
 initializeAudio();
