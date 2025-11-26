@@ -6,6 +6,7 @@ let gameState: 'menu' | 'playing' | 'levelComplete' | 'gameOver' = 'menu';
 let currentLevel = 1;
 let globalScore = 0;
 let isMuted = false;
+let isFullscreen = false;
 
 // Audio elements
 let bgMusic: HTMLAudioElement | null = null;
@@ -31,6 +32,7 @@ const levelCompleteScreen = document.getElementById('levelCompleteScreen') as HT
 const gameOverScreen = document.getElementById('gameOverScreen') as HTMLDivElement;
 const gameCompletionScreen = document.getElementById('gameCompletionScreen') as HTMLDivElement;
 const muteBtn = document.getElementById('muteBtn') as HTMLButtonElement;
+const fullscreenBtn = document.getElementById('fullscreenBtn') as HTMLButtonElement;
 
 const scoreEl = document.getElementById('score') as HTMLDivElement;
 const levelEl = document.getElementById('level') as HTMLDivElement;
@@ -221,6 +223,44 @@ function updateMuteState() {
     if (victorySound) victorySound.volume = 0.7;
     if (defeatSound) defeatSound.volume = 0.7;
   }
+}
+
+// Fullscreen functionality
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    // Enter fullscreen
+    const docEl = document.documentElement as any;
+    if (docEl.requestFullscreen) {
+      docEl.requestFullscreen();
+    } else if (docEl.webkitRequestFullscreen) {
+      docEl.webkitRequestFullscreen();
+    } else if (docEl.msRequestFullscreen) {
+      docEl.msRequestFullscreen();
+    }
+    isFullscreen = true;
+    fullscreenBtn.innerHTML = '⛶';
+    document.body.classList.add('fullscreen');
+  } else {
+    // Exit fullscreen
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if ((document as any).webkitExitFullscreen) {
+      (document as any).webkitExitFullscreen();
+    } else if ((document as any).msExitFullscreen) {
+      (document as any).msExitFullscreen();
+    }
+    isFullscreen = false;
+    fullscreenBtn.innerHTML = '⛶';
+    document.body.classList.remove('fullscreen');
+  }
+  
+  // Resize canvas after fullscreen change
+  setTimeout(() => {
+    resizeCanvas();
+    if (gameState === 'playing') {
+      buildWorld();
+    }
+  }, 300);
 }
 
 // FIXED: PERFECT CANVAS RESIZING WITH RESPONSIVE DESIGN
@@ -1781,7 +1821,9 @@ function showMenu() {
   if (gameOverScreen) gameOverScreen.style.display = 'none';
   if (gameCompletionScreen) gameCompletionScreen.style.display = 'none';
   if (canvas) canvas.style.display = 'none';
-  if (muteBtn) muteBtn.style.display = 'none';
+  if (document.getElementById('controlButtons')) {
+    document.getElementById('controlButtons')!.style.display = 'none';
+  }
 }
 
 function showGame() {
@@ -1795,7 +1837,9 @@ function showGame() {
   if (gameOverScreen) gameOverScreen.style.display = 'none';
   if (gameCompletionScreen) gameCompletionScreen.style.display = 'none';
   if (canvas) canvas.style.display = 'block';
-  if (muteBtn) muteBtn.style.display = 'block';
+  if (document.getElementById('controlButtons')) {
+    document.getElementById('controlButtons')!.style.display = 'flex';
+  }
   
   playLevelMusic();
   buildWorld();
@@ -1905,9 +1949,41 @@ function initializeEventListeners() {
   if (muteBtn) {
     muteBtn.addEventListener('click', updateMuteState);
   }
+
+  if (fullscreenBtn) {
+    fullscreenBtn.addEventListener('click', toggleFullscreen);
+  }
+
+  // Listen for fullscreen changes
+  document.addEventListener('fullscreenchange', () => {
+    isFullscreen = !!document.fullscreenElement;
+    fullscreenBtn.innerHTML = isFullscreen ? '⛶' : '⛶';
+    document.body.classList.toggle('fullscreen', isFullscreen);
+    
+    // Resize canvas after fullscreen change
+    setTimeout(() => {
+      resizeCanvas();
+      if (gameState === 'playing') {
+        buildWorld();
+      }
+    }, 300);
+  });
+
+  document.addEventListener('webkitfullscreenchange', () => {
+    isFullscreen = !!(document as any).webkitFullscreenElement;
+    fullscreenBtn.innerHTML = isFullscreen ? '⛶' : '⛶';
+    document.body.classList.toggle('fullscreen', isFullscreen);
+    
+    setTimeout(() => {
+      resizeCanvas();
+      if (gameState === 'playing') {
+        buildWorld();
+      }
+    }, 300);
+  });
 }
 
-// FIXED: PERFECT ORIENTATION HANDLING WITH RESPONSIVE UPDATES
+// FIXED: IMPROVED ORIENTATION HANDLING
 function checkOrientation() {
   const isLandscape = window.innerWidth > window.innerHeight;
   const rotateMessage = document.getElementById('rotateMessage');
@@ -1932,6 +2008,7 @@ function checkOrientation() {
 
 window.addEventListener('resize', () => {
   resizeCanvas();
+  checkOrientation();
   
   // Only rebuild world if we're in landscape mode and playing
   if (gameState === 'playing' && document.body.classList.contains('landscape-mode')) {
