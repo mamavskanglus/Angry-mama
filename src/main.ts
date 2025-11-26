@@ -52,7 +52,12 @@ engine.timing.timeScale = 1.0;
 const runner = Runner.create();
 Runner.run(runner, engine);
 
-const GROUND_HEIGHT = 90;
+// Responsive design variables
+let BASE_WORLD_WIDTH = 1920;
+let BASE_WORLD_HEIGHT = 1080;
+let worldScale = 1;
+
+let GROUND_HEIGHT = 90;
 
 // Friend images
 let friend1Image: HTMLImageElement;
@@ -218,7 +223,7 @@ function updateMuteState() {
   }
 }
 
-// FIXED: PERFECT CANVAS RESIZING
+// FIXED: PERFECT CANVAS RESIZING WITH RESPONSIVE DESIGN
 function resizeCanvas() {
   const dpr = Math.max(1, window.devicePixelRatio || 1);
   const w = window.innerWidth;
@@ -229,6 +234,48 @@ function resizeCanvas() {
   canvas.width = Math.floor(w * dpr);
   canvas.height = Math.floor(h * dpr);
   ctx.scale(dpr, dpr);
+  
+  // Calculate world scale for responsive design
+  worldScale = calculateWorldScale();
+  
+  // Update global world dimensions based on screen size
+  WORLD_W = w;
+  WORLD_H = h;
+  
+  // Adjust game elements based on screen size
+  adjustGameForScreenSize();
+}
+
+// Calculate responsive scaling
+function calculateWorldScale(): number {
+  const screenWidth = window.innerWidth;
+  const screenHeight = window.innerHeight;
+  
+  // For landscape mode, we want to maintain aspect ratio
+  const scaleX = screenWidth / BASE_WORLD_WIDTH;
+  const scaleY = screenHeight / BASE_WORLD_HEIGHT;
+  
+  // Use the smaller scale to ensure everything fits
+  return Math.min(scaleX, scaleY);
+}
+
+// Adjust game elements for different screen sizes
+function adjustGameForScreenSize() {
+  // Adjust bird radius based on screen size
+  BIRD_RADIUS = Math.max(20, 25 * worldScale);
+  
+  // Adjust ground height
+  GROUND_HEIGHT = Math.max(60, 90 * worldScale);
+  
+  // Update structure base Y position
+  STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - (10 * worldScale);
+  
+  // Adjust sling anchor position for different screen sizes
+  slingAnchor.x = Math.max(120 * worldScale, Math.floor(WORLD_W * 0.15));
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - (110 * worldScale);
+  
+  // Adjust max drag distance for smaller screens
+  MAX_DRAG_DISTANCE = Math.max(100, 150 * worldScale);
 }
 
 let WORLD_W = window.innerWidth;
@@ -268,6 +315,7 @@ let blocks: Block[] = [];
 let pigs: Pig[] = [];
 let score = 0;
 let advanceTimer = 0;
+let MAX_DRAG_DISTANCE = 150;
 
 const MAX_PARTICLES = 20;
 let activeParticles: Matter.Body[] = [];
@@ -391,7 +439,7 @@ function spawnBirds(types: ('red' | 'blue' | 'yellow')[]) {
   }
   birds = [];
 
-  const startX = slingAnchor.x - 100;
+  const startX = slingAnchor.x - 100 * worldScale;
   const startY = WORLD_H - GROUND_HEIGHT - BIRD_RADIUS - 2;
 
   for (let i = 0; i < types.length; i++) {
@@ -492,7 +540,7 @@ function makeBlockDynamic(block: Block) {
 }
 
 function addPig(x: number, y: number, health: number, isBoss: boolean): Matter.Body {
-  const radius = isBoss ? 60 : 50;
+  const radius = isBoss ? 60 * worldScale : 50 * worldScale;
   
   const body = Bodies.circle(x, y, radius, {
     label: 'pig',
@@ -873,8 +921,9 @@ function drawOriginalPig(pig: Pig, r: number) {
 
 function buildAssamHouse(x: number) {
   const baseY = STRUCTURE_BASE_Y;
+  const responsiveScale = worldScale;
   
-  const platform = Bodies.rectangle(x, baseY, 450, 30, {
+  const platform = Bodies.rectangle(x, baseY, 450 * responsiveScale, 30 * responsiveScale, {
     isStatic: true, 
     label: 'platform', 
     friction: 0.9, 
@@ -882,141 +931,144 @@ function buildAssamHouse(x: number) {
   });
   World.add(world, platform);
 
-  addStableBlock(x - 90, baseY - 20, 40, 30, 'clay', 3);
-  addStableBlock(x - 45, baseY - 20, 40, 30, 'clay', 3);
-  addStableBlock(x, baseY - 20, 40, 30, 'clay', 3);
-  addStableBlock(x + 45, baseY - 20, 40, 30, 'clay', 3);
-  addStableBlock(x + 90, baseY - 20, 40, 30, 'clay', 3);
+  addStableBlock(x - 90 * responsiveScale, baseY - 20 * responsiveScale, 40 * responsiveScale, 30 * responsiveScale, 'clay', 3);
+  addStableBlock(x - 45 * responsiveScale, baseY - 20 * responsiveScale, 40 * responsiveScale, 30 * responsiveScale, 'clay', 3);
+  addStableBlock(x, baseY - 20 * responsiveScale, 40 * responsiveScale, 30 * responsiveScale, 'clay', 3);
+  addStableBlock(x + 45 * responsiveScale, baseY - 20 * responsiveScale, 40 * responsiveScale, 30 * responsiveScale, 'clay', 3);
+  addStableBlock(x + 90 * responsiveScale, baseY - 20 * responsiveScale, 40 * responsiveScale, 30 * responsiveScale, 'clay', 3);
 
-  addStableBlock(x, baseY - 50, 260, 20, 'wood', 2);
+  addStableBlock(x, baseY - 50 * responsiveScale, 260 * responsiveScale, 20 * responsiveScale, 'wood', 2);
 
-  addStableBlock(x - 80, baseY - 85, 20, 70, 'wood', 4);
-  addStableBlock(x + 80, baseY - 85, 20, 70, 'wood', 4);
-  addStableBlock(x - 35, baseY - 85, 20, 70, 'wood', 4);
-  addStableBlock(x + 35, baseY - 85, 20, 70, 'wood', 4);
+  addStableBlock(x - 80 * responsiveScale, baseY - 85 * responsiveScale, 20 * responsiveScale, 70 * responsiveScale, 'wood', 4);
+  addStableBlock(x + 80 * responsiveScale, baseY - 85 * responsiveScale, 20 * responsiveScale, 70 * responsiveScale, 'wood', 4);
+  addStableBlock(x - 35 * responsiveScale, baseY - 85 * responsiveScale, 20 * responsiveScale, 70 * responsiveScale, 'wood', 4);
+  addStableBlock(x + 35 * responsiveScale, baseY - 85 * responsiveScale, 20 * responsiveScale, 70 * responsiveScale, 'wood', 4);
 
-  addStableBlock(x - 50, baseY - 120, 110, 25, 'thatch', 1);
-  addStableBlock(x + 50, baseY - 120, 110, 25, 'thatch', 1);
+  addStableBlock(x - 50 * responsiveScale, baseY - 120 * responsiveScale, 110 * responsiveScale, 25 * responsiveScale, 'thatch', 1);
+  addStableBlock(x + 50 * responsiveScale, baseY - 120 * responsiveScale, 110 * responsiveScale, 25 * responsiveScale, 'thatch', 1);
 
-  addStableBlock(x - 60, baseY - 70, 35, 25, 'glass', 1);
-  addStableBlock(x + 60, baseY - 70, 35, 25, 'glass', 1);
+  addStableBlock(x - 60 * responsiveScale, baseY - 70 * responsiveScale, 35 * responsiveScale, 25 * responsiveScale, 'glass', 1);
+  addStableBlock(x + 60 * responsiveScale, baseY - 70 * responsiveScale, 35 * responsiveScale, 25 * responsiveScale, 'glass', 1);
 
-  addStableBlock(x, baseY - 145, 240, 20, 'thatch', 1);
+  addStableBlock(x, baseY - 145 * responsiveScale, 240 * responsiveScale, 20 * responsiveScale, 'thatch', 1);
   
-  addStableBlock(x, baseY - 155, 60, 15, 'wood', 2);
-  addStableBlock(x, baseY - 30, 80, 30, 'wood', 3);
+  addStableBlock(x, baseY - 155 * responsiveScale, 60 * responsiveScale, 15 * responsiveScale, 'wood', 2);
+  addStableBlock(x, baseY - 30 * responsiveScale, 80 * responsiveScale, 30 * responsiveScale, 'wood', 3);
 
-  addPig(x - 35, baseY - 60, 5, false);
-  addPig(x + 35, baseY - 60, 5, false);
-  addPig(x, baseY - 100, 5, false);
-  addPig(x - 80, baseY - 40, 5, false);
+  addPig(x - 35 * responsiveScale, baseY - 60 * responsiveScale, 5, false);
+  addPig(x + 35 * responsiveScale, baseY - 60 * responsiveScale, 5, false);
+  addPig(x, baseY - 100 * responsiveScale, 5, false);
+  addPig(x - 80 * responsiveScale, baseY - 40 * responsiveScale, 5, false);
 }
 
 function buildTwoStory(x: number) {
   const baseY = STRUCTURE_BASE_Y;
+  const responsiveScale = worldScale;
   
-  const platform = Bodies.rectangle(x, baseY, 500, 30, {
+  const platform = Bodies.rectangle(x, baseY, 500 * responsiveScale, 30 * responsiveScale, {
     isStatic: true, label: 'platform', friction: 0.9, restitution: 0.1
   });
   World.add(world, platform);
 
-  addStableBlock(x - 130, baseY - 35, 35, 70, 'stone', 5);
-  addStableBlock(x + 130, baseY - 35, 35, 70, 'stone', 5);
-  addStableBlock(x, baseY - 70, 300, 25, 'stone', 4);
+  addStableBlock(x - 130 * responsiveScale, baseY - 35 * responsiveScale, 35 * responsiveScale, 70 * responsiveScale, 'stone', 5);
+  addStableBlock(x + 130 * responsiveScale, baseY - 35 * responsiveScale, 35 * responsiveScale, 70 * responsiveScale, 'stone', 5);
+  addStableBlock(x, baseY - 70 * responsiveScale, 300 * responsiveScale, 25 * responsiveScale, 'stone', 4);
 
-  addStableBlock(x - 110, baseY - 105, 30, 70, 'stone', 5);
-  addStableBlock(x + 110, baseY - 105, 30, 70, 'stone', 5);
-  addStableBlock(x, baseY - 140, 260, 25, 'stone', 4);
+  addStableBlock(x - 110 * responsiveScale, baseY - 105 * responsiveScale, 30 * responsiveScale, 70 * responsiveScale, 'stone', 5);
+  addStableBlock(x + 110 * responsiveScale, baseY - 105 * responsiveScale, 30 * responsiveScale, 70 * responsiveScale, 'stone', 5);
+  addStableBlock(x, baseY - 140 * responsiveScale, 260 * responsiveScale, 25 * responsiveScale, 'stone', 4);
 
-  addStableBlock(x - 90, baseY - 175, 30, 70, 'wood', 4);
-  addStableBlock(x + 90, baseY - 175, 30, 70, 'wood', 4);
-  addStableBlock(x, baseY - 210, 220, 25, 'wood', 3);
+  addStableBlock(x - 90 * responsiveScale, baseY - 175 * responsiveScale, 30 * responsiveScale, 70 * responsiveScale, 'wood', 4);
+  addStableBlock(x + 90 * responsiveScale, baseY - 175 * responsiveScale, 30 * responsiveScale, 70 * responsiveScale, 'wood', 4);
+  addStableBlock(x, baseY - 210 * responsiveScale, 220 * responsiveScale, 25 * responsiveScale, 'wood', 3);
 
-  addStableBlock(x - 100, baseY - 50, 35, 40, 'glass', 1);
-  addStableBlock(x + 100, baseY - 50, 35, 40, 'glass', 1);
-  addStableBlock(x - 90, baseY - 120, 30, 35, 'glass', 1);
-  addStableBlock(x + 90, baseY - 120, 30, 35, 'glass', 1);
+  addStableBlock(x - 100 * responsiveScale, baseY - 50 * responsiveScale, 35 * responsiveScale, 40 * responsiveScale, 'glass', 1);
+  addStableBlock(x + 100 * responsiveScale, baseY - 50 * responsiveScale, 35 * responsiveScale, 40 * responsiveScale, 'glass', 1);
+  addStableBlock(x - 90 * responsiveScale, baseY - 120 * responsiveScale, 30 * responsiveScale, 35 * responsiveScale, 'glass', 1);
+  addStableBlock(x + 90 * responsiveScale, baseY - 120 * responsiveScale, 30 * responsiveScale, 35 * responsiveScale, 'glass', 1);
 
-  addStableBlock(x, baseY - 85, 170, 15, 'wood', 2);
-  addStableBlock(x, baseY - 225, 260, 20, 'wood', 2);
+  addStableBlock(x, baseY - 85 * responsiveScale, 170 * responsiveScale, 15 * responsiveScale, 'wood', 2);
+  addStableBlock(x, baseY - 225 * responsiveScale, 260 * responsiveScale, 20 * responsiveScale, 'wood', 2);
 
-  addPig(x - 90, baseY - 45, 6, false);
-  addPig(x + 90, baseY - 45, 6, false);
-  addPig(x - 70, baseY - 115, 6, false);
-  addPig(x + 70, baseY - 115, 6, false);
-  addPig(x, baseY - 185, 6, false);
+  addPig(x - 90 * responsiveScale, baseY - 45 * responsiveScale, 6, false);
+  addPig(x + 90 * responsiveScale, baseY - 45 * responsiveScale, 6, false);
+  addPig(x - 70 * responsiveScale, baseY - 115 * responsiveScale, 6, false);
+  addPig(x + 70 * responsiveScale, baseY - 115 * responsiveScale, 6, false);
+  addPig(x, baseY - 185 * responsiveScale, 6, false);
 }
 
 function buildThreeStory(x: number) {
   const baseY = STRUCTURE_BASE_Y;
+  const responsiveScale = worldScale;
   
-  const platform = Bodies.rectangle(x, baseY, 550, 30, {
+  const platform = Bodies.rectangle(x, baseY, 550 * responsiveScale, 30 * responsiveScale, {
     isStatic: true, label: 'platform', friction: 0.9, restitution: 0.1
   });
   World.add(world, platform);
 
-  addStableBlock(x - 150, baseY - 40, 35, 80, 'stone', 6);
-  addStableBlock(x + 150, baseY - 40, 35, 80, 'stone', 6);
-  addStableBlock(x, baseY - 80, 320, 25, 'stone', 5);
+  addStableBlock(x - 150 * responsiveScale, baseY - 40 * responsiveScale, 35 * responsiveScale, 80 * responsiveScale, 'stone', 6);
+  addStableBlock(x + 150 * responsiveScale, baseY - 40 * responsiveScale, 35 * responsiveScale, 80 * responsiveScale, 'stone', 6);
+  addStableBlock(x, baseY - 80 * responsiveScale, 320 * responsiveScale, 25 * responsiveScale, 'stone', 5);
 
-  addStableBlock(x - 130, baseY - 120, 32, 80, 'stone', 5);
-  addStableBlock(x + 130, baseY - 120, 32, 80, 'stone', 5);
-  addStableBlock(x, baseY - 160, 280, 25, 'stone', 4);
+  addStableBlock(x - 130 * responsiveScale, baseY - 120 * responsiveScale, 32 * responsiveScale, 80 * responsiveScale, 'stone', 5);
+  addStableBlock(x + 130 * responsiveScale, baseY - 120 * responsiveScale, 32 * responsiveScale, 80 * responsiveScale, 'stone', 5);
+  addStableBlock(x, baseY - 160 * responsiveScale, 280 * responsiveScale, 25 * responsiveScale, 'stone', 4);
 
-  addStableBlock(x - 110, baseY - 200, 30, 80, 'stone', 4);
-  addStableBlock(x + 110, baseY - 200, 30, 80, 'stone', 4);
-  addStableBlock(x, baseY - 240, 240, 25, 'stone', 3);
+  addStableBlock(x - 110 * responsiveScale, baseY - 200 * responsiveScale, 30 * responsiveScale, 80 * responsiveScale, 'stone', 4);
+  addStableBlock(x + 110 * responsiveScale, baseY - 200 * responsiveScale, 30 * responsiveScale, 80 * responsiveScale, 'stone', 4);
+  addStableBlock(x, baseY - 240 * responsiveScale, 240 * responsiveScale, 25 * responsiveScale, 'stone', 3);
 
-  addStableBlock(x - 90, baseY - 280, 28, 80, 'wood', 3);
-  addStableBlock(x + 90, baseY - 280, 28, 80, 'wood', 3);
-  addStableBlock(x, baseY - 320, 200, 25, 'wood', 2);
+  addStableBlock(x - 90 * responsiveScale, baseY - 280 * responsiveScale, 28 * responsiveScale, 80 * responsiveScale, 'wood', 3);
+  addStableBlock(x + 90 * responsiveScale, baseY - 280 * responsiveScale, 28 * responsiveScale, 80 * responsiveScale, 'wood', 3);
+  addStableBlock(x, baseY - 320 * responsiveScale, 200 * responsiveScale, 25 * responsiveScale, 'wood', 2);
 
-  addStableBlock(x - 100, baseY - 55, 32, 45, 'glass', 1);
-  addStableBlock(x + 100, baseY - 55, 32, 45, 'glass', 1);
-  addStableBlock(x - 90, baseY - 135, 30, 40, 'glass', 1);
-  addStableBlock(x + 90, baseY - 135, 30, 40, 'glass', 1);
-  addStableBlock(x - 70, baseY - 215, 28, 35, 'glass', 1);
-  addStableBlock(x + 70, baseY - 215, 28, 35, 'glass', 1);
+  addStableBlock(x - 100 * responsiveScale, baseY - 55 * responsiveScale, 32 * responsiveScale, 45 * responsiveScale, 'glass', 1);
+  addStableBlock(x + 100 * responsiveScale, baseY - 55 * responsiveScale, 32 * responsiveScale, 45 * responsiveScale, 'glass', 1);
+  addStableBlock(x - 90 * responsiveScale, baseY - 135 * responsiveScale, 30 * responsiveScale, 40 * responsiveScale, 'glass', 1);
+  addStableBlock(x + 90 * responsiveScale, baseY - 135 * responsiveScale, 30 * responsiveScale, 40 * responsiveScale, 'glass', 1);
+  addStableBlock(x - 70 * responsiveScale, baseY - 215 * responsiveScale, 28 * responsiveScale, 35 * responsiveScale, 'glass', 1);
+  addStableBlock(x + 70 * responsiveScale, baseY - 215 * responsiveScale, 28 * responsiveScale, 35 * responsiveScale, 'glass', 1);
 
-  addStableBlock(x, baseY - 350, 220, 20, 'wood', 2);
+  addStableBlock(x, baseY - 350 * responsiveScale, 220 * responsiveScale, 20 * responsiveScale, 'wood', 2);
 
-  addPig(x - 100, baseY - 50, 8, false);
-  addPig(x + 100, baseY - 50, 8, false);
-  addPig(x - 80, baseY - 130, 8, false);
-  addPig(x + 80, baseY - 130, 8, false);
-  addPig(x, baseY - 270, 12, true);
+  addPig(x - 100 * responsiveScale, baseY - 50 * responsiveScale, 8, false);
+  addPig(x + 100 * responsiveScale, baseY - 50 * responsiveScale, 8, false);
+  addPig(x - 80 * responsiveScale, baseY - 130 * responsiveScale, 8, false);
+  addPig(x + 80 * responsiveScale, baseY - 130 * responsiveScale, 8, false);
+  addPig(x, baseY - 270 * responsiveScale, 12, true);
 }
 
 function buildFinalLevel(x: number) {
   const baseY = STRUCTURE_BASE_Y;
+  const responsiveScale = worldScale;
   
-  const platform = Bodies.rectangle(x, baseY, 600, 30, {
+  const platform = Bodies.rectangle(x, baseY, 600 * responsiveScale, 30 * responsiveScale, {
     isStatic: true, label: 'platform', friction: 0.9, restitution: 0.1
   });
   World.add(world, platform);
 
-  addStableBlock(x - 180, baseY - 60, 40, 120, 'stone', 8);
-  addStableBlock(x + 180, baseY - 60, 40, 120, 'stone', 8);
+  addStableBlock(x - 180 * responsiveScale, baseY - 60 * responsiveScale, 40 * responsiveScale, 120 * responsiveScale, 'stone', 8);
+  addStableBlock(x + 180 * responsiveScale, baseY - 60 * responsiveScale, 40 * responsiveScale, 120 * responsiveScale, 'stone', 8);
 
-  addStableBlock(x - 110, baseY - 40, 35, 80, 'stone', 6);
-  addStableBlock(x + 110, baseY - 40, 35, 80, 'stone', 6);
-  addStableBlock(x, baseY - 80, 260, 25, 'stone', 5);
+  addStableBlock(x - 110 * responsiveScale, baseY - 40 * responsiveScale, 35 * responsiveScale, 80 * responsiveScale, 'stone', 6);
+  addStableBlock(x + 110 * responsiveScale, baseY - 40 * responsiveScale, 35 * responsiveScale, 80 * responsiveScale, 'stone', 6);
+  addStableBlock(x, baseY - 80 * responsiveScale, 260 * responsiveScale, 25 * responsiveScale, 'stone', 5);
 
-  addStableBlock(x - 90, baseY - 120, 32, 80, 'stone', 4);
-  addStableBlock(x + 90, baseY - 120, 32, 80, 'stone', 4);
-  addStableBlock(x, baseY - 160, 220, 25, 'stone', 3);
+  addStableBlock(x - 90 * responsiveScale, baseY - 120 * responsiveScale, 32 * responsiveScale, 80 * responsiveScale, 'stone', 4);
+  addStableBlock(x + 90 * responsiveScale, baseY - 120 * responsiveScale, 32 * responsiveScale, 80 * responsiveScale, 'stone', 4);
+  addStableBlock(x, baseY - 160 * responsiveScale, 220 * responsiveScale, 25 * responsiveScale, 'stone', 3);
 
-  addStableBlock(x - 70, baseY - 200, 30, 80, 'stone', 3);
-  addStableBlock(x + 70, baseY - 200, 30, 80, 'stone', 3);
-  addStableBlock(x, baseY - 240, 180, 25, 'stone', 2);
+  addStableBlock(x - 70 * responsiveScale, baseY - 200 * responsiveScale, 30 * responsiveScale, 80 * responsiveScale, 'stone', 3);
+  addStableBlock(x + 70 * responsiveScale, baseY - 200 * responsiveScale, 30 * responsiveScale, 80 * responsiveScale, 'stone', 3);
+  addStableBlock(x, baseY - 240 * responsiveScale, 180 * responsiveScale, 25 * responsiveScale, 'stone', 2);
 
-  addPig(x - 180, baseY - 120, 8, false);
-  addPig(x + 180, baseY - 120, 8, false);
-  addPig(x - 90, baseY - 50, 8, false);
-  addPig(x + 90, baseY - 50, 8, false);
-  addPig(x, baseY - 120, 8, false);
-  addPig(x, baseY - 200, 8, false);
-  addPig(x, baseY - 240, 15, true);
+  addPig(x - 180 * responsiveScale, baseY - 120 * responsiveScale, 8, false);
+  addPig(x + 180 * responsiveScale, baseY - 120 * responsiveScale, 8, false);
+  addPig(x - 90 * responsiveScale, baseY - 50 * responsiveScale, 8, false);
+  addPig(x + 90 * responsiveScale, baseY - 50 * responsiveScale, 8, false);
+  addPig(x, baseY - 120 * responsiveScale, 8, false);
+  addPig(x, baseY - 200 * responsiveScale, 8, false);
+  addPig(x, baseY - 240 * responsiveScale, 15, true);
 }
 
 let ground: Matter.Body;
@@ -1024,15 +1076,17 @@ let leftWall: Matter.Body;
 let rightWall: Matter.Body;
 let slingAnchor = { x: 170, y: 0 };
 
-// FIXED: PERFECT WORLD BUILDING
+// FIXED: PERFECT WORLD BUILDING WITH RESPONSIVE DESIGN
 function buildWorld() {
   console.trace('buildWorld() called from:');
+  
+  // Use the current responsive dimensions
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
-  STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  BIRD_RADIUS = 25;
-  slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
-  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
+  
+  // Recalculate scale and adjust game elements
+  worldScale = calculateWorldScale();
+  adjustGameForScreenSize();
 
   activeParticles.forEach(particle => {
     try { World.remove(world, particle); } catch (e) {}
@@ -1087,6 +1141,7 @@ function buildWorld() {
   });
   World.add(world, [ground, leftWall, rightWall]);
 
+  // Calculate structure position based on screen width
   const structureX = WORLD_W - Math.floor(WORLD_W * 0.3);
   
   console.log(`Building level ${currentLevel}`);
@@ -1269,7 +1324,7 @@ canvas.addEventListener('pointermove', (ev) => {
   const dragDist = Math.hypot(dragX, dragY);
   
   // Limit drag distance
-  const maxDrag = 150;
+  const maxDrag = MAX_DRAG_DISTANCE;
   if (dragDist > maxDrag) {
     dragX = (dragX / dragDist) * maxDrag;
     dragY = (dragY / dragDist) * maxDrag;
@@ -1498,7 +1553,7 @@ function renderFrame() {
     ctx.save();
     ctx.translate(p.position.x, p.position.y);
     ctx.rotate(p.angle);
-    const r = pig.isBoss ? 60 : 50;
+    const r = pig.isBoss ? 60 * worldScale : 50 * worldScale;
 
     if (imagesLoaded) {
       let pigImage: HTMLImageElement;
@@ -1852,7 +1907,7 @@ function initializeEventListeners() {
   }
 }
 
-// FIXED: PERFECT ORIENTATION HANDLING
+// FIXED: PERFECT ORIENTATION HANDLING WITH RESPONSIVE UPDATES
 function checkOrientation() {
   const isLandscape = window.innerWidth > window.innerHeight;
   const rotateMessage = document.getElementById('rotateMessage');
@@ -1860,34 +1915,31 @@ function checkOrientation() {
   if (isLandscape) {
     document.body.classList.add('landscape-mode');
     if (rotateMessage) rotateMessage.style.display = 'none';
+    
+    // Recalculate everything when switching to landscape
+    setTimeout(() => {
+      resizeCanvas();
+      if (gameState === 'playing') {
+        // Rebuild world with new dimensions
+        buildWorld();
+      }
+    }, 100);
   } else {
     document.body.classList.remove('landscape-mode');
     if (rotateMessage) rotateMessage.style.display = 'flex';
-  }
-  
-  // Update world dimensions
-  WORLD_W = window.innerWidth;
-  WORLD_H = window.innerHeight;
-  STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  
-  // Update sling anchor position for mobile
-  slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
-  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
-  
-  if (gameState === 'playing') {
-    resizeCanvas();
-    // buildWorld();
   }
 }
 
 window.addEventListener('resize', () => {
   resizeCanvas();
-  // Only update dimensions, don't rebuild world
-  WORLD_W = window.innerWidth;
-  WORLD_H = window.innerHeight;
-  STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
-  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
+  
+  // Only rebuild world if we're in landscape mode and playing
+  if (gameState === 'playing' && document.body.classList.contains('landscape-mode')) {
+    // Small delay to ensure resize is complete
+    setTimeout(() => {
+      buildWorld();
+    }, 250);
+  }
 });
 
 window.addEventListener('orientationchange', checkOrientation);
