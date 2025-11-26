@@ -55,6 +55,13 @@ body {
   font-weight: bold;
   line-height: 1.4;
   max-width: 300px;
+  margin-bottom: 1rem;
+}
+
+.rotate-note {
+  font-size: 1rem;
+  opacity: 0.8;
+  font-style: italic;
 }
 
 @keyframes rotate {
@@ -62,29 +69,25 @@ body {
   100% { transform: rotate(90deg); }
 }
 
-/* Hide everything when in portrait or until landscape */
-body:not(.landscape-mode) #gameCanvas,
-body:not(.landscape-mode) #gameUI,
-body:not(.landscape-mode) #muteBtn,
-body:not(.landscape-mode) #fullScreenBtn,
-body:not(.landscape-mode) .screen:not(#rotateMessage) {
+/* SIMPLIFIED ORIENTATION HANDLING */
+body.landscape-ready .rotate-message {
   display: none !important;
 }
 
-/* LANDSCAPE MODE STYLES */
-body.landscape-mode .rotate-message {
-  display: none !important;
+body.landscape-ready #gameCanvas,
+body.landscape-ready #gameUI,
+body.landscape-ready #muteBtn,
+body.landscape-ready #fullScreenBtn,
+body.landscape-ready .screen:not(#rotateMessage) {
+  display: block !important;
 }
 
-body.landscape-mode {
-  position: fixed;
-  width: 100vw;
-  height: 100vh;
-  overflow: hidden;
+body.landscape-ready #menuScreen {
+  display: flex !important;
 }
 
 #gameCanvas {
-  display: block;
+  display: none;
   cursor: crosshair;
   width: 100%;
   height: 100%;
@@ -93,7 +96,7 @@ body.landscape-mode {
 
 /* Mobile Landscape Optimizations */
 @media screen and (max-height: 768px) and (orientation: landscape) {
-  body.landscape-mode #gameCanvas {
+  body.landscape-ready #gameCanvas {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -103,8 +106,7 @@ body.landscape-mode {
     max-height: 100vh;
   }
   
-  /* Adjust UI for mobile landscape */
-  body.landscape-mode #gameUI {
+  body.landscape-ready #gameUI {
     top: 8px !important;
     right: 8px !important;
     padding: 6px 10px !important;
@@ -115,7 +117,7 @@ body.landscape-mode {
     border: 2px solid rgba(0,0,0,0.2);
   }
   
-  body.landscape-mode #muteBtn {
+  body.landscape-ready #muteBtn {
     top: 8px !important;
     left: 8px !important;
     width: 38px !important;
@@ -127,7 +129,7 @@ body.landscape-mode {
     border: 2px solid rgba(0,0,0,0.2);
   }
   
-  body.landscape-mode #fullScreenBtn {
+  body.landscape-ready #fullScreenBtn {
     top: 8px !important;
     left: 54px !important;
     width: 38px !important;
@@ -139,7 +141,6 @@ body.landscape-mode {
     border: 2px solid rgba(0,0,0,0.2);
   }
   
-  /* Scale down popups for mobile */
   .popup-content {
     transform: scale(0.75);
     transform-origin: center;
@@ -165,6 +166,7 @@ body.landscape-mode {
   gap: 2rem;
   text-align: center;
   padding: 2rem;
+  display: none;
 }
 
 #menuScreen h1 {
@@ -200,6 +202,7 @@ body.landscape-mode {
 .popup-screen {
   background: rgba(0,0,0,0.7);
   backdrop-filter: blur(10px);
+  display: none;
 }
 
 .popup-content {
@@ -331,6 +334,7 @@ button:active {
 }
 
 #gameUI {
+  display: none;
   position: fixed;
   top: 1rem;
   right: 1rem;
@@ -339,7 +343,6 @@ button:active {
   border-radius: 1rem;
   box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   z-index: 50;
-  display: none;
   backdrop-filter: blur(10px);
   border: 2px solid rgba(255,255,255,0.5);
 }
@@ -353,6 +356,7 @@ button:active {
 }
 
 #muteBtn {
+  display: none;
   position: fixed;
   top: 1rem;
   left: 1rem;
@@ -361,7 +365,6 @@ button:active {
   border-radius: 50%;
   background: rgba(255,255,255,0.95);
   font-size: clamp(1.5rem, 3vw, 1.8rem);
-  display: none;
   align-items: center;
   justify-content: center;
   z-index: 50;
@@ -376,6 +379,7 @@ button:active {
 }
 
 #fullScreenBtn {
+  display: none;
   position: fixed;
   top: 1rem;
   left: clamp(60px, 12vw, 70px);
@@ -384,7 +388,6 @@ button:active {
   border-radius: 50%;
   background: rgba(255,255,255,0.95);
   font-size: clamp(1.5rem, 3vw, 1.8rem);
-  display: none;
   align-items: center;
   justify-content: center;
   z-index: 50;
@@ -400,18 +403,18 @@ button:active {
 
 /* Very small mobile landscape screens */
 @media screen and (max-height: 400px) and (orientation: landscape) {
-  #gameUI {
+  body.landscape-ready #gameUI {
     top: 4px !important;
     right: 4px !important;
     padding: 4px 6px !important;
   }
   
-  #gameUI div {
+  body.landscape-ready #gameUI div {
     font-size: 10px !important;
     margin: 1px 0;
   }
   
-  #muteBtn {
+  body.landscape-ready #muteBtn {
     top: 4px !important;
     left: 4px !important;
     width: 32px !important;
@@ -419,7 +422,7 @@ button:active {
     font-size: 0.9rem !important;
   }
   
-  #fullScreenBtn {
+  body.landscape-ready #fullScreenBtn {
     top: 4px !important;
     left: 40px !important;
     width: 32px !important;
@@ -457,20 +460,20 @@ button:active {
     max-width: min(600px, 80vw);
   }
   
-  #gameUI {
+  body.landscape-ready #gameUI {
     top: 1.5rem;
     right: 1.5rem;
     padding: 1rem 1.5rem;
   }
   
-  #muteBtn {
+  body.landscape-ready #muteBtn {
     top: 1.5rem;
     left: 1.5rem;
     width: 55px;
     height: 55px;
   }
   
-  #fullScreenBtn {
+  body.landscape-ready #fullScreenBtn {
     top: 1.5rem;
     left: 4rem;
     width: 55px;
