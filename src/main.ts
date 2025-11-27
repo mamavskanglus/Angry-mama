@@ -2,7 +2,6 @@ import * as Matter from 'matter-js';
 
 const { Engine, World, Bodies, Body, Runner, Events, Constraint, Composite } = Matter;
 
-// Game state and variables
 let gameState: 'menu' | 'playing' | 'levelComplete' | 'gameOver' = 'menu';
 let currentLevel = 1;
 let globalScore = 0;
@@ -32,7 +31,6 @@ const levelCompleteScreen = document.getElementById('levelCompleteScreen') as HT
 const gameOverScreen = document.getElementById('gameOverScreen') as HTMLDivElement;
 const gameCompletionScreen = document.getElementById('gameCompletionScreen') as HTMLDivElement;
 const muteBtn = document.getElementById('muteBtn') as HTMLButtonElement;
-const fullScreenBtn = document.getElementById('fullScreenBtn') as HTMLButtonElement;
 
 const scoreEl = document.getElementById('score') as HTMLDivElement;
 const levelEl = document.getElementById('level') as HTMLDivElement;
@@ -47,7 +45,7 @@ const ctx = canvas.getContext('2d')!;
 const engine = Engine.create();
 const world = engine.world;
 
-// Physics settings
+// PERFECTED PHYSICS SETTINGS
 world.gravity.y = 1;
 engine.timing.timeScale = 1.0;
 
@@ -56,28 +54,188 @@ Runner.run(runner, engine);
 
 const GROUND_HEIGHT = 90;
 
-// Game objects
-let birds: Bird[] = [];
-let currentBirdIndex = 0;
-let slingConstraint: Matter.Constraint | null = null;
-let blocks: Block[] = [];
-let pigs: Pig[] = [];
-let score = 0;
-let advanceTimer = 0;
-
-const MAX_PARTICLES = 20;
-let activeParticles: Matter.Body[] = [];
-
-let clouds: { x: number; y: number; size: number; speed: number }[] = [];
-
-// Image assets
+// Friend images
 let friend1Image: HTMLImageElement;
 let friend2Image: HTMLImageElement;
 let friend3Image: HTMLImageElement;
 let friend4Image: HTMLImageElement;
 let imagesLoaded = false;
 
-// Interfaces
+// Initialize all audio elements
+function initializeAudio() {
+  victorySound = null;
+  defeatSound = null;
+}
+
+// Create and play audio with better error handling
+function createAndPlayAudio(src: string, volume: number = 0.7, loop: boolean = false): HTMLAudioElement | null {
+  if (isMuted) return null;
+  
+  try {
+    const audio = new Audio(src);
+    audio.volume = volume;
+    audio.loop = loop;
+    
+    audio.addEventListener('error', (e) => {
+      console.log('Audio element error:', e, 'Src:', src);
+    });
+    
+    const playPromise = audio.play();
+    if (playPromise !== undefined) {
+      playPromise.catch(error => {
+        console.log('Audio play failed:', error, 'Src:', src);
+      });
+    }
+    
+    return audio;
+  } catch (error) {
+    console.log('Audio creation failed:', error, 'Src:', src);
+    return null;
+  }
+}
+
+// Stop background music
+function stopBackgroundMusic() {
+  if (bgMusic) {
+    bgMusic.pause();
+    bgMusic.currentTime = 0;
+    bgMusic = null;
+    currentBgMusic = null;
+  }
+}
+
+// Play background music for current level
+function playLevelMusic() {
+  if (isPlayingVictoryOrDefeat) return;
+  
+  stopBackgroundMusic();
+  
+  let musicPath = '';
+  switch(currentLevel) {
+    case 1: musicPath = AUDIO_PATHS.level1; break;
+    case 2: musicPath = AUDIO_PATHS.level2; break;
+    case 3: musicPath = AUDIO_PATHS.level3; break;
+    case 4: musicPath = AUDIO_PATHS.level4; break;
+    default: musicPath = AUDIO_PATHS.level1;
+  }
+  
+  if (musicPath && !isMuted) {
+    console.log('Playing level music:', musicPath);
+    bgMusic = createAndPlayAudio(musicPath, 0.5, true);
+    currentBgMusic = musicPath;
+  }
+}
+
+// Play victory sound
+function playVictorySound() {
+  if (isMuted) return;
+  
+  console.log('Playing victory sound');
+  
+  stopBackgroundMusic();
+  
+  isPlayingVictoryOrDefeat = true;
+  
+  if (victorySound) {
+    victorySound.pause();
+    victorySound = null;
+  }
+  
+  victorySound = createAndPlayAudio(AUDIO_PATHS.victory, 0.7, false);
+  
+  if (victorySound) {
+    victorySound.addEventListener('ended', () => {
+      console.log('Victory sound ended');
+      isPlayingVictoryOrDefeat = false;
+      victorySound = null;
+    });
+    
+    victorySound.addEventListener('error', () => {
+      console.log('Victory sound error');
+      isPlayingVictoryOrDefeat = false;
+      victorySound = null;
+    });
+  } else {
+    isPlayingVictoryOrDefeat = false;
+  }
+}
+
+// Play defeat sound  
+function playDefeatSound() {
+  if (isMuted) return;
+  
+  console.log('Playing defeat sound');
+  
+  stopBackgroundMusic();
+  
+  isPlayingVictoryOrDefeat = true;
+  
+  if (defeatSound) {
+    defeatSound.pause();
+    defeatSound = null;
+  }
+  
+  defeatSound = createAndPlayAudio(AUDIO_PATHS.defeat, 0.7, false);
+  
+  if (defeatSound) {
+    defeatSound.addEventListener('ended', () => {
+      console.log('Defeat sound ended');
+      isPlayingVictoryOrDefeat = false;
+      defeatSound = null;
+    });
+    
+    defeatSound.addEventListener('error', () => {
+      console.log('Defeat sound error');
+      isPlayingVictoryOrDefeat = false;
+      defeatSound = null;
+    });
+  } else {
+    isPlayingVictoryOrDefeat = false;
+  }
+}
+
+// Update mute functionality
+function updateMuteState() {
+  isMuted = !isMuted;
+  muteBtn.innerHTML = isMuted ? '🔇' : '🔊';
+  
+  if (isMuted) {
+    stopBackgroundMusic();
+    if (victorySound) {
+      victorySound.pause();
+      victorySound.volume = 0;
+    }
+    if (defeatSound) {
+      defeatSound.pause();
+      defeatSound.volume = 0;
+    }
+  } else {
+    if (gameState === 'playing' && !isPlayingVictoryOrDefeat) {
+      playLevelMusic();
+    }
+    if (victorySound) victorySound.volume = 0.7;
+    if (defeatSound) defeatSound.volume = 0.7;
+  }
+}
+
+// FIXED: PERFECT CANVAS RESIZING
+function resizeCanvas() {
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  
+  canvas.style.width = `${w}px`;
+  canvas.style.height = `${h}px`;
+  canvas.width = Math.floor(w * dpr);
+  canvas.height = Math.floor(h * dpr);
+  ctx.scale(dpr, dpr);
+}
+
+let WORLD_W = window.innerWidth;
+let WORLD_H = window.innerHeight;
+let BIRD_RADIUS = 25;
+let STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
+
 interface Bird {
   body: Matter.Body;
   launched: boolean;
@@ -103,74 +261,20 @@ interface Pig {
   lastY: number;
 }
 
-// World dimensions
-let WORLD_W = window.innerWidth;
-let WORLD_H = window.innerHeight;
-let BIRD_RADIUS = 25;
-let STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-let slingAnchor = { x: 170, y: 0 };
+let birds: Bird[] = [];
+let currentBirdIndex = 0;
+let slingConstraint: Matter.Constraint | null = null;
+let blocks: Block[] = [];
+let pigs: Pig[] = [];
+let score = 0;
+let advanceTimer = 0;
 
-// Physics bodies
-let ground: Matter.Body;
-let leftWall: Matter.Body;
-let rightWall: Matter.Body;
+const MAX_PARTICLES = 20;
+let activeParticles: Matter.Body[] = [];
 
-// ========== ORIENTATION & FULLSCREEN ==========
+let clouds: { x: number; y: number; size: number; speed: number }[] = [];
 
-function checkOrientation() {
-  const isLandscape = window.innerWidth > window.innerHeight;
-  const rotateMessage = document.getElementById('rotateMessage');
-  
-  if (isLandscape) {
-    document.body.classList.add('landscape-ready');
-    if (rotateMessage) rotateMessage.style.display = 'none';
-  } else {
-    document.body.classList.remove('landscape-ready');
-    if (rotateMessage) rotateMessage.style.display = 'flex';
-  }
-  
-  // Update world dimensions
-  WORLD_W = window.innerWidth;
-  WORLD_H = window.innerHeight;
-  STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  
-  // Update sling anchor position for mobile
-  slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
-  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
-  
-  if (gameState === 'playing') {
-    resizeCanvas();
-  }
-}
-
-function toggleFullScreen() {
-  if (!document.fullscreenElement) {
-    if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen();
-    } else if ((document.documentElement as any).webkitRequestFullscreen) {
-      (document.documentElement as any).webkitRequestFullscreen();
-    }
-    document.body.classList.add('fullscreen-mode');
-  } else {
-    if (document.exitFullscreen) {
-      document.exitFullscreen();
-    } else if ((document as any).webkitExitFullscreen) {
-      (document as any).webkitExitFullscreen();
-    }
-    document.body.classList.remove('fullscreen-mode');
-  }
-}
-
-function updateFullScreenButton() {
-  if (document.fullscreenElement) {
-    fullScreenBtn.innerHTML = '⛶';
-  } else {
-    fullScreenBtn.innerHTML = '⛶';
-  }
-}
-
-// ========== INITIALIZATION ==========
-
+// FIXED IMAGE LOADING
 function loadImages(): Promise<boolean> {
   return new Promise((resolve) => {
     let imagesToLoad = 4;
@@ -183,16 +287,20 @@ function loadImages(): Promise<boolean> {
 
     const onImageLoad = () => {
       imagesLoadedCount++;
+      console.log(`✅ Loaded image ${imagesLoadedCount}/${imagesToLoad}`);
       if (imagesLoadedCount === imagesToLoad) {
         imagesLoaded = true;
+        console.log('🎉 All friend images loaded successfully!');
         resolve(true);
       }
     };
 
-    const onImageError = () => {
+    const onImageError = (err: string) => {
+      console.error('❌ Failed to load image:', err);
       imagesLoadedCount++;
       if (imagesLoadedCount === imagesToLoad) {
         imagesLoaded = false;
+        console.warn('⚠️ Some images failed to load, using fallback rendering');
         resolve(false);
       }
     };
@@ -202,17 +310,19 @@ function loadImages(): Promise<boolean> {
     friend3Image.onload = onImageLoad;
     friend4Image.onload = onImageLoad;
 
-    friend1Image.onerror = onImageError;
-    friend2Image.onerror = onImageError;
-    friend3Image.onerror = onImageError;
-    friend4Image.onerror = onImageError;
+    friend1Image.onerror = () => onImageError('friend1-face.png');
+    friend2Image.onerror = () => onImageError('friend2-face.png');
+    friend3Image.onerror = () => onImageError('friend3-face.png');
+    friend4Image.onerror = () => onImageError('friend4-face.png');
 
     try {
       friend1Image.src = new URL('./assets/friend1-face.png', import.meta.url).href;
       friend2Image.src = new URL('./assets/friend2-face.png', import.meta.url).href;
       friend3Image.src = new URL('./assets/friend3-face.png', import.meta.url).href;
       friend4Image.src = new URL('./assets/friend4-face.png', import.meta.url).href;
+      console.log('🔍 Trying to load images with import.meta.url');
     } catch (e) {
+      console.error('import.meta.url failed, trying relative paths', e);
       friend1Image.src = './assets/friend1-face.png';
       friend2Image.src = './assets/friend2-face.png';
       friend3Image.src = './assets/friend3-face.png';
@@ -220,382 +330,6 @@ function loadImages(): Promise<boolean> {
     }
   });
 }
-
-function initializeEventListeners() {
-  const playBtn = document.getElementById('playBtn');
-  const nextLevelBtn = document.getElementById('nextLevelBtn');
-  const menuFromCompleteBtn = document.getElementById('menuFromCompleteBtn');
-  const retryBtn = document.getElementById('retryBtn');
-  const menuFromGameOverBtn = document.getElementById('menuFromGameOverBtn');
-  const menuFromCompletionBtn = document.getElementById('menuFromCompletionBtn');
-  const playAgainBtn = document.getElementById('playAgainBtn');
-
-  if (playBtn) playBtn.addEventListener('click', () => {
-    currentLevel = 1;
-    globalScore = 0;
-    showGame();
-  });
-
-  if (nextLevelBtn) nextLevelBtn.addEventListener('click', () => {
-    if (currentLevel < 4) {
-      currentLevel++;
-      showGame();
-    } else {
-      showGameCompletion();
-    }
-  });
-
-  if (menuFromCompleteBtn) menuFromCompleteBtn.addEventListener('click', () => {
-    currentLevel = 1;
-    globalScore = 0;
-    showMenu();
-  });
-
-  if (retryBtn) retryBtn.addEventListener('click', showGame);
-
-  if (menuFromGameOverBtn) menuFromGameOverBtn.addEventListener('click', () => {
-    currentLevel = 1;
-    globalScore = 0;
-    showMenu();
-  });
-
-  if (menuFromCompletionBtn) menuFromCompletionBtn.addEventListener('click', () => {
-    currentLevel = 1;
-    globalScore = 0;
-    showMenu();
-  });
-
-  if (playAgainBtn) playAgainBtn.addEventListener('click', () => {
-    currentLevel = 1;
-    globalScore = 0;
-    showGame();
-  });
-
-  if (muteBtn) muteBtn.addEventListener('click', updateMuteState);
-  if (fullScreenBtn) fullScreenBtn.addEventListener('click', toggleFullScreen);
-
-  // Orientation events
-  window.addEventListener('resize', checkOrientation);
-  window.addEventListener('orientationchange', checkOrientation);
-  window.addEventListener('load', checkOrientation);
-  
-  // Fullscreen events
-  document.addEventListener('fullscreenchange', updateFullScreenButton);
-  document.addEventListener('webkitfullscreenchange', updateFullScreenButton);
-
-  // Touch events for slingshot
-  let isDragging = false;
-  canvas.addEventListener('pointerdown', (ev) => {
-    if (gameState !== 'playing') return;
-    
-    const current = birds[currentBirdIndex];
-    if (!current || current.launched) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = ev.clientX - rect.left;
-    const mouseY = ev.clientY - rect.top;
-    
-    const distToBird = Math.hypot(mouseX - current.body.position.x, mouseY - current.body.position.y);
-    
-    if (distToBird < BIRD_RADIUS * 3) {
-      isDragging = true;
-      
-      if (slingConstraint) {
-        World.remove(world, slingConstraint);
-        slingConstraint = null;
-      }
-      
-      canvas.style.cursor = 'grabbing';
-      ev.preventDefault();
-    }
-  });
-
-  canvas.addEventListener('pointermove', (ev) => {
-    if (!isDragging || gameState !== 'playing') return;
-    
-    const current = birds[currentBirdIndex];
-    if (!current) return;
-    
-    const rect = canvas.getBoundingClientRect();
-    const mouseX = ev.clientX - rect.left;
-    const mouseY = ev.clientY - rect.top;
-    
-    let dragX = mouseX - slingAnchor.x;
-    let dragY = mouseY - slingAnchor.y;
-    const dragDist = Math.hypot(dragX, dragY);
-    
-    const maxDrag = 150;
-    if (dragDist > maxDrag) {
-      dragX = (dragX / dragDist) * maxDrag;
-      dragY = (dragY / dragDist) * maxDrag;
-    }
-    
-    if (dragX > 30) dragX = 30;
-    
-    Body.setPosition(current.body, {
-      x: slingAnchor.x + dragX,
-      y: slingAnchor.y + dragY
-    });
-    
-    ev.preventDefault();
-  });
-
-  canvas.addEventListener('pointerup', (ev) => {
-    if (!isDragging || gameState !== 'playing') return;
-    
-    const current = birds[currentBirdIndex];
-    if (!current) {
-      isDragging = false;
-      return;
-    }
-    
-    const dragX = current.body.position.x - slingAnchor.x;
-    const dragY = current.body.position.y - slingAnchor.y;
-    const dragDist = Math.hypot(dragX, dragY);
-    
-    if (dragDist > 15) {
-      current.launched = true;
-      current.launchTime = Date.now();
-      
-      const launchPower = 0.22;
-      const velX = -dragX * launchPower;
-      const velY = -dragY * launchPower;
-      
-      Body.setStatic(current.body, false);
-      Body.setVelocity(current.body, { x: velX, y: velY });
-      
-      const speed = Body.getSpeed(current.body);
-      if (speed > 75) {
-        Body.setSpeed(current.body, 75);
-      }
-      
-    } else {
-      Body.setPosition(current.body, { x: slingAnchor.x, y: slingAnchor.y });
-      attachBirdToSling(currentBirdIndex);
-    }
-    
-    isDragging = false;
-    canvas.style.cursor = 'default';
-    ev.preventDefault();
-  });
-}
-
-function resizeCanvas() {
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  
-  canvas.style.width = `${w}px`;
-  canvas.style.height = `${h}px`;
-  canvas.width = Math.floor(w * dpr);
-  canvas.height = Math.floor(h * dpr);
-  ctx.scale(dpr, dpr);
-}
-
-// ========== GAME STATE MANAGEMENT ==========
-
-function showMenu() {
-  gameState = 'menu';
-  stopBackgroundMusic();
-  
-  isPlayingVictoryOrDefeat = false;
-  
-  if (victorySound) {
-    victorySound.pause();
-    victorySound = null;
-  }
-  if (defeatSound) {
-    defeatSound.pause();
-    defeatSound = null;
-  }
-  
-  if (menuScreen) menuScreen.style.display = 'flex';
-  if (gameUI) gameUI.style.display = 'none';
-  if (levelCompleteScreen) levelCompleteScreen.style.display = 'none';
-  if (gameOverScreen) gameOverScreen.style.display = 'none';
-  if (gameCompletionScreen) gameCompletionScreen.style.display = 'none';
-  if (canvas) canvas.style.display = 'none';
-  if (muteBtn) muteBtn.style.display = 'none';
-  if (fullScreenBtn) fullScreenBtn.style.display = 'none';
-}
-
-function showGame() {
-  gameState = 'playing';
-  isPlayingVictoryOrDefeat = false;
-  
-  if (menuScreen) menuScreen.style.display = 'none';
-  if (gameUI) gameUI.style.display = 'block';
-  if (levelCompleteScreen) levelCompleteScreen.style.display = 'none';
-  if (gameOverScreen) gameOverScreen.style.display = 'none';
-  if (gameCompletionScreen) gameCompletionScreen.style.display = 'none';
-  if (canvas) canvas.style.display = 'block';
-  if (muteBtn) muteBtn.style.display = 'block';
-  if (fullScreenBtn) fullScreenBtn.style.display = 'block';
-  
-  playLevelMusic();
-  buildWorld();
-}
-
-function showLevelComplete() {
-  if (gameState !== 'playing') return;
-  gameState = 'levelComplete';
-  
-  stopBackgroundMusic();
-  playVictorySound();
-  
-  if (levelCompleteScreen) levelCompleteScreen.style.display = 'flex';
-  if (completeLevelEl) completeLevelEl.textContent = `Level ${currentLevel} Complete!`;
-  if (finalScoreEl) finalScoreEl.textContent = `Score: ${globalScore}`;
-}
-
-function showGameCompletion() {
-  gameState = 'levelComplete';
-  if (levelCompleteScreen) levelCompleteScreen.style.display = 'none';
-  if (gameCompletionScreen) {
-    gameCompletionScreen.style.display = 'flex';
-    if (finalGameScoreEl) finalGameScoreEl.textContent = `Final Score: ${globalScore}`;
-  }
-}
-
-function showGameOver() {
-  if (gameState !== 'playing') return;
-  gameState = 'gameOver';
-  
-  stopBackgroundMusic();
-  playDefeatSound();
-  
-  if (gameOverScreen) gameOverScreen.style.display = 'flex';
-  if (gameOverScoreEl) gameOverScoreEl.textContent = `Score: ${globalScore} | Level: ${currentLevel}`;
-}
-
-// ========== AUDIO SYSTEM ==========
-
-function initializeAudio() {
-  victorySound = null;
-  defeatSound = null;
-}
-
-function createAndPlayAudio(src: string, volume: number = 0.7, loop: boolean = false): HTMLAudioElement | null {
-  if (isMuted) return null;
-  
-  try {
-    const audio = new Audio(src);
-    audio.volume = volume;
-    audio.loop = loop;
-    
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        console.log('Audio play failed:', error);
-      });
-    }
-    
-    return audio;
-  } catch (error) {
-    console.log('Audio creation failed:', error);
-    return null;
-  }
-}
-
-function stopBackgroundMusic() {
-  if (bgMusic) {
-    bgMusic.pause();
-    bgMusic.currentTime = 0;
-    bgMusic = null;
-    currentBgMusic = null;
-  }
-}
-
-function playLevelMusic() {
-  if (isPlayingVictoryOrDefeat) return;
-  
-  stopBackgroundMusic();
-  
-  let musicPath = '';
-  switch(currentLevel) {
-    case 1: musicPath = AUDIO_PATHS.level1; break;
-    case 2: musicPath = AUDIO_PATHS.level2; break;
-    case 3: musicPath = AUDIO_PATHS.level3; break;
-    case 4: musicPath = AUDIO_PATHS.level4; break;
-    default: musicPath = AUDIO_PATHS.level1;
-  }
-  
-  if (musicPath && !isMuted) {
-    bgMusic = createAndPlayAudio(musicPath, 0.5, true);
-    currentBgMusic = musicPath;
-  }
-}
-
-function playVictorySound() {
-  if (isMuted) return;
-  
-  stopBackgroundMusic();
-  isPlayingVictoryOrDefeat = true;
-  
-  if (victorySound) {
-    victorySound.pause();
-    victorySound = null;
-  }
-  
-  victorySound = createAndPlayAudio(AUDIO_PATHS.victory, 0.7, false);
-  
-  if (victorySound) {
-    victorySound.addEventListener('ended', () => {
-      isPlayingVictoryOrDefeat = false;
-      victorySound = null;
-    });
-  } else {
-    isPlayingVictoryOrDefeat = false;
-  }
-}
-
-function playDefeatSound() {
-  if (isMuted) return;
-  
-  stopBackgroundMusic();
-  isPlayingVictoryOrDefeat = true;
-  
-  if (defeatSound) {
-    defeatSound.pause();
-    defeatSound = null;
-  }
-  
-  defeatSound = createAndPlayAudio(AUDIO_PATHS.defeat, 0.7, false);
-  
-  if (defeatSound) {
-    defeatSound.addEventListener('ended', () => {
-      isPlayingVictoryOrDefeat = false;
-      defeatSound = null;
-    });
-  } else {
-    isPlayingVictoryOrDefeat = false;
-  }
-}
-
-function updateMuteState() {
-  isMuted = !isMuted;
-  muteBtn.innerHTML = isMuted ? '🔇' : '🔊';
-  
-  if (isMuted) {
-    stopBackgroundMusic();
-    if (victorySound) {
-      victorySound.pause();
-      victorySound.volume = 0;
-    }
-    if (defeatSound) {
-      defeatSound.pause();
-      defeatSound.volume = 0;
-    }
-  } else {
-    if (gameState === 'playing' && !isPlayingVictoryOrDefeat) {
-      playLevelMusic();
-    }
-    if (victorySound) victorySound.volume = 0.7;
-    if (defeatSound) defeatSound.volume = 0.7;
-  }
-}
-
-// ========== GAME LOGIC ==========
 
 function createBackground() {
   clouds = [];
@@ -668,36 +402,43 @@ function spawnBirds(types: ('red' | 'blue' | 'yellow')[]) {
       label: 'bird',
       restitution: 0.4,
       friction: 0.8,
-      frictionAir: 0.005,
+      frictionAir: 0.005, // REDUCED from 0.008 - less air drag
       density: 0.003,
       collisionFilter: { group: -1 }
     });
     World.add(world, body);
     
+    // FIXED: Don't make birds static initially
     Body.setStatic(body, false);
     
     birds.push({ body, launched: false, type: types[i], launchTime: 0 });
   }
 }
 
+// FIXED: PERFECT SLINGSHOT ATTACHMENT FUNCTION
 function attachBirdToSling(index: number) {
   if (index < 0 || index >= birds.length) return;
   
   currentBirdIndex = index;
   const birdObj = birds[index];
 
+  // Remove old constraint
   if (slingConstraint) {
     World.remove(world, slingConstraint);
     slingConstraint = null;
   }
 
+  // Reset bird completely
   Body.setPosition(birdObj.body, { x: slingAnchor.x, y: slingAnchor.y });
   Body.setVelocity(birdObj.body, { x: 0, y: 0 });
   Body.setAngularVelocity(birdObj.body, 0);
   Body.setAngle(birdObj.body, 0);
-  Body.setStatic(birdObj.body, false);
+  Body.setStatic(birdObj.body, false); // Make sure it's dynamic
 
   birdObj.launched = false;
+  
+  // Don't create constraint - we'll handle dragging manually
+  // The constraint will only exist during rendering for visual
 }
 
 function addStableBlock(x: number, y: number, w: number, h: number, type: Block['type'], health: number): Matter.Body {
@@ -1278,7 +1019,14 @@ function buildFinalLevel(x: number) {
   addPig(x, baseY - 240, 15, true);
 }
 
+let ground: Matter.Body;
+let leftWall: Matter.Body;
+let rightWall: Matter.Body;
+let slingAnchor = { x: 170, y: 0 };
+
+// FIXED: PERFECT WORLD BUILDING
 function buildWorld() {
+  console.trace('buildWorld() called from:');
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
@@ -1307,6 +1055,8 @@ function buildWorld() {
   if (!imagesLoaded) {
     loadImages().then((success) => {
       console.log('Image loading completed:', success ? 'Success' : 'Failed');
+    }).catch((error) => {
+      console.error('Image loading error:', error);
     });
   }
 
@@ -1339,6 +1089,7 @@ function buildWorld() {
 
   const structureX = WORLD_W - Math.floor(WORLD_W * 0.3);
   
+  console.log(`Building level ${currentLevel}`);
   switch (currentLevel) {
     case 1: 
       buildAssamHouse(structureX); 
@@ -1357,11 +1108,12 @@ function buildWorld() {
       break;
   }
 
+  // UPDATED: More birds per level
   const birdTypesList: ('red' | 'blue' | 'yellow')[][] = [
-    ['red', 'red', 'red', 'red', 'red'],
-    ['red', 'blue', 'red', 'blue', 'red'],
-    ['red', 'blue', 'yellow', 'red', 'blue'],
-    ['red', 'blue', 'yellow', 'blue', 'yellow', 'red']
+    ['red', 'red', 'red', 'red', 'red'], // Level 1: 5 birds now!
+    ['red', 'blue', 'red', 'blue', 'red'], // Level 2: 5 birds
+    ['red', 'blue', 'yellow', 'red', 'blue'], // Level 3: 5 birds
+    ['red', 'blue', 'yellow', 'blue', 'yellow', 'red'] // Level 4: 6 birds
   ];
   
   const birdTypes = birdTypesList[currentLevel - 1] || ['red', 'red', 'red'];
@@ -1375,9 +1127,11 @@ function buildWorld() {
   Events.on(engine, 'collisionStart', handleCollision);
 }
 
+// FIXED: Auto-advance to next bird
 function autoAdvance() {
   if (gameState !== 'playing') return;
 
+  // Check pig fall damage (keep this part as is)
   for (let i = pigs.length - 1; i >= 0; i--) {
     const pig = pigs[i];
     const fallDistance = pig.body.position.y - pig.lastY;
@@ -1397,7 +1151,9 @@ function autoAdvance() {
     if (pig.body) pig.lastY = pig.body.position.y;
   }
 
+  // Check if level is complete
   if (pigs.length === 0) {
+    console.log(`Level ${currentLevel} completed! No pigs left.`);
     setTimeout(() => {
       if (gameState === 'playing' && pigs.length === 0) {
         showLevelComplete();
@@ -1406,6 +1162,7 @@ function autoAdvance() {
     return;
   }
 
+  // Clean up old birds
   const now = Date.now();
   for (let i = birds.length - 1; i >= 0; i--) {
     const b = birds[i];
@@ -1422,6 +1179,7 @@ function autoAdvance() {
     }
   }
 
+  // FIXED: Auto-advance to next bird
   const current = birds[currentBirdIndex];
   
   if (current && current.launched) {
@@ -1430,27 +1188,34 @@ function autoAdvance() {
                           current.body.position.x > WORLD_W + 100 ||
                           current.body.position.y > WORLD_H + 100;
     
+    // Bird has stopped or went out of bounds
     if (speed < 0.5 || isOutOfBounds) {
       advanceTimer++;
       
-      if (advanceTimer > 60) {
+      // Wait a bit before attaching next bird
+      if (advanceTimer > 60) { // Wait 1 second (60 frames at 60fps)
         const nextIndex = birds.findIndex(b => !b.launched);
         
         if (nextIndex >= 0) {
+          console.log(`Advancing to bird ${nextIndex + 1}`);
           currentBirdIndex = nextIndex;
           attachBirdToSling(currentBirdIndex);
           advanceTimer = 0;
         } else {
+          // All birds used, check game over
           if (advanceTimer > 180 && pigs.length > 0) {
+            console.log('All birds used, pigs remain - GAME OVER');
             showGameOver();
             advanceTimer = 0;
           }
         }
       }
     } else {
+      // Bird still moving, reset timer
       advanceTimer = 0;
     }
   } else if (!current) {
+    // No current bird, try to find one
     const nextIndex = birds.findIndex(b => !b.launched);
     if (nextIndex >= 0) {
       currentBirdIndex = nextIndex;
@@ -1458,6 +1223,129 @@ function autoAdvance() {
     }
   }
 }
+
+// ========== WORKING SLINGSHOT SYSTEM ==========
+let isDragging = false;
+
+canvas.addEventListener('pointerdown', (ev) => {
+  if (gameState !== 'playing') return;
+  
+  const current = birds[currentBirdIndex];
+  if (!current || current.launched) return;
+  
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = ev.clientX - rect.left;
+  const mouseY = ev.clientY - rect.top;
+  
+  const distToBird = Math.hypot(mouseX - current.body.position.x, mouseY - current.body.position.y);
+  
+  if (distToBird < BIRD_RADIUS * 3) {
+    isDragging = true;
+    
+    // Remove the elastic constraint so we can drag freely
+    if (slingConstraint) {
+      World.remove(world, slingConstraint);
+      slingConstraint = null;
+    }
+    
+    canvas.style.cursor = 'grabbing';
+    ev.preventDefault();
+  }
+});
+
+canvas.addEventListener('pointermove', (ev) => {
+  if (!isDragging || gameState !== 'playing') return;
+  
+  const current = birds[currentBirdIndex];
+  if (!current) return;
+  
+  const rect = canvas.getBoundingClientRect();
+  const mouseX = ev.clientX - rect.left;
+  const mouseY = ev.clientY - rect.top;
+  
+  // Calculate drag position relative to anchor
+  let dragX = mouseX - slingAnchor.x;
+  let dragY = mouseY - slingAnchor.y;
+  const dragDist = Math.hypot(dragX, dragY);
+  
+  // Limit drag distance
+  const maxDrag = 150;
+  if (dragDist > maxDrag) {
+    dragX = (dragX / dragDist) * maxDrag;
+    dragY = (dragY / dragDist) * maxDrag;
+  }
+  
+  // Don't let bird go too far forward (right)
+  if (dragX > 30) dragX = 30;
+  
+  // Move the bird
+  Body.setPosition(current.body, {
+    x: slingAnchor.x + dragX,
+    y: slingAnchor.y + dragY
+  });
+  
+  ev.preventDefault();
+});
+
+canvas.addEventListener('pointerup', (ev) => {
+  if (!isDragging || gameState !== 'playing') return;
+  
+  const current = birds[currentBirdIndex];
+  if (!current) {
+    isDragging = false;
+    return;
+  }
+  
+  const dragX = current.body.position.x - slingAnchor.x;
+  const dragY = current.body.position.y - slingAnchor.y;
+  const dragDist = Math.hypot(dragX, dragY);
+  
+  if (dragDist > 15) {
+    // LAUNCH!
+    current.launched = true;
+    current.launchTime = Date.now();
+    
+    // EVEN MORE POWER!
+    const launchPower = 0.22; // Increased from 0.15 to 0.22
+    const velX = -dragX * launchPower;
+    const velY = -dragY * launchPower;
+    
+    // Make sure bird is dynamic
+    Body.setStatic(current.body, false);
+    
+    // Apply velocity
+    Body.setVelocity(current.body, { x: velX, y: velY });
+    
+    // Higher max speed
+    const speed = Body.getSpeed(current.body);
+    if (speed > 75) { // Increased from 60 to 75
+      Body.setSpeed(current.body, 75);
+    }
+    
+    console.log('LAUNCHED! Velocity:', velX.toFixed(2), velY.toFixed(2), 'Speed:', speed.toFixed(2));
+    
+  } else {
+    // Drag was too small, snap back
+    Body.setPosition(current.body, { x: slingAnchor.x, y: slingAnchor.y });
+    attachBirdToSling(currentBirdIndex);
+  }
+  
+  isDragging = false;
+  canvas.style.cursor = 'default';
+  ev.preventDefault();
+});
+
+canvas.addEventListener('pointercancel', (ev) => {
+  if (isDragging) {
+    const current = birds[currentBirdIndex];
+    if (current) {
+      Body.setPosition(current.body, { x: slingAnchor.x, y: slingAnchor.y });
+      attachBirdToSling(currentBirdIndex);
+    }
+    isDragging = false;
+    canvas.style.cursor = 'default';
+  }
+});
 
 function renderFrame() {
   if (gameState !== 'playing') return;
@@ -1479,7 +1367,7 @@ function renderFrame() {
 
   drawGrass(ctx);
 
-  // Render blocks
+  // Render blocks with damage states
   for (const blk of blocks) {
     const b = blk.body;
     ctx.save();
@@ -1496,10 +1384,18 @@ function renderFrame() {
     let opacity = 1;
     
     switch (blk.damageState) {
-      case 'intact': opacity = 1.0; break;
-      case 'cracked': opacity = 0.8; break;
-      case 'broken': opacity = 0.6; break;
-      case 'destroyed': opacity = 0.4; break;
+      case 'intact':
+        opacity = 1.0;
+        break;
+      case 'cracked':
+        opacity = 0.8;
+        break;
+      case 'broken':
+        opacity = 0.6;
+        break;
+      case 'destroyed':
+        opacity = 0.4;
+        break;
     }
     
     switch (blk.type) {
@@ -1596,7 +1492,7 @@ function renderFrame() {
     ctx.restore();
   }
 
-  // Render pigs
+  // RENDER PIGS
   for (const pig of pigs) {
     const p = pig.body;
     ctx.save();
@@ -1645,7 +1541,7 @@ function renderFrame() {
     ctx.restore();
   }
 
-  // Render slingshot
+  // RENDER SLINGSHOT
   const sx = slingAnchor.x;
   const sy = slingAnchor.y;
   const groundY = WORLD_H - GROUND_HEIGHT;
@@ -1672,9 +1568,7 @@ function renderFrame() {
   ctx.strokeRect(-8, -80, 16, 80);
   ctx.restore();
 
-  // Render slingshot bands
-  let isDragging = false;
-  
+  // UPDATED: RENDER SLINGSHOT BANDS - Tighter and more visible
   if (isDragging) {
     const current = birds[currentBirdIndex];
     if (current) {
@@ -1683,20 +1577,24 @@ function renderFrame() {
       const rightX = sx + 28;
       const topY = sy - 10;
 
-      ctx.lineWidth = 8;
-      ctx.strokeStyle = 'rgba(139,69,19,0.95)';
+      // Draw thick, tight elastic bands
+      ctx.lineWidth = 8; // Was 6, now thicker
+      ctx.strokeStyle = 'rgba(139,69,19,0.95)'; // Darker brown, more opaque
       ctx.lineCap = 'round';
 
+      // Left band
       ctx.beginPath();
       ctx.moveTo(leftX, topY);
       ctx.lineTo(bp.x, bp.y);
       ctx.stroke();
 
+      // Right band
       ctx.beginPath();
       ctx.moveTo(rightX, topY);
       ctx.lineTo(bp.x, bp.y);
       ctx.stroke();
 
+      // Add highlight for 3D effect
       ctx.lineWidth = 3;
       ctx.strokeStyle = 'rgba(160,82,45,0.6)';
       ctx.beginPath();
@@ -1707,6 +1605,7 @@ function renderFrame() {
       ctx.stroke();
     }
   } else {
+    // Resting position
     const current = birds[currentBirdIndex];
     if (current && !current.launched) {
       const bp = current.body.position;
@@ -1730,7 +1629,7 @@ function renderFrame() {
     }
   }
 
-  // Render birds
+  // RENDER BIRDS
   for (let i = 0; i < birds.length; i++) {
     const br = birds[i];
     const b = br.body;
@@ -1767,7 +1666,7 @@ function renderFrame() {
     ctx.restore();
   }
 
-  // Trajectory preview
+  // UPDATED: TRAJECTORY PREVIEW with matching power
   if (isDragging) {
     const current = birds[currentBirdIndex];
     if (current) {
@@ -1776,7 +1675,7 @@ function renderFrame() {
       const dragDist = Math.hypot(dragX, dragY);
 
       if (dragDist > 15) {
-        const launchPower = 0.22;
+        const launchPower = 0.22; // Match launch power!
         const velX = -dragX * launchPower;
         const velY = -dragY * launchPower;
 
@@ -1786,6 +1685,7 @@ function renderFrame() {
         ctx.beginPath();
         ctx.moveTo(current.body.position.x, current.body.position.y);
 
+        // Simulate trajectory
         for (let t = 0; t < 100; t += 2) {
           const x = current.body.position.x + velX * t;
           const y = current.body.position.y + velY * t + 0.5 * world.gravity.y * t * t;
@@ -1799,28 +1699,257 @@ function renderFrame() {
   }
 }
 
-// ========== MAIN INITIALIZATION ==========
+(function loop() {
+  autoAdvance();
+  renderFrame();
+  requestAnimationFrame(loop);
+})();
 
-function init() {
-  loadImages().then((success) => {
-    console.log('Images loaded:', success);
-  });
+function showMenu() {
+  gameState = 'menu';
+  stopBackgroundMusic();
   
-  initializeAudio();
-  initializeEventListeners();
-  resizeCanvas();
-  checkOrientation();
-  showMenu();
+  isPlayingVictoryOrDefeat = false;
   
-  // Start game loop
-  (function loop() {
-    if (gameState === 'playing') {
-      autoAdvance();
-      renderFrame();
-    }
-    requestAnimationFrame(loop);
-  })();
+  if (victorySound) {
+    victorySound.pause();
+    victorySound = null;
+  }
+  if (defeatSound) {
+    defeatSound.pause();
+    defeatSound = null;
+  }
+  
+  if (menuScreen) menuScreen.style.display = 'flex';
+  if (gameUI) gameUI.style.display = 'none';
+  if (levelCompleteScreen) levelCompleteScreen.style.display = 'none';
+  if (gameOverScreen) gameOverScreen.style.display = 'none';
+  if (gameCompletionScreen) gameCompletionScreen.style.display = 'none';
+  if (canvas) canvas.style.display = 'none';
+  if (muteBtn) muteBtn.style.display = 'none';
+  if (fullscreenBtn) fullscreenBtn.style.display = 'none'; // ADD THIS LINE
 }
 
-// Start the fucking game
-init();
+function showGame() {
+  gameState = 'playing';
+  
+  isPlayingVictoryOrDefeat = false;
+  
+  if (menuScreen) menuScreen.style.display = 'none';
+  if (gameUI) gameUI.style.display = 'block';
+  if (levelCompleteScreen) levelCompleteScreen.style.display = 'none';
+  if (gameOverScreen) gameOverScreen.style.display = 'none';
+  if (gameCompletionScreen) gameCompletionScreen.style.display = 'none';
+  if (canvas) canvas.style.display = 'block';
+  if (muteBtn) muteBtn.style.display = 'block';
+  if (fullscreenBtn) fullscreenBtn.style.display = 'flex'; // ADD THIS LINE
+  
+  playLevelMusic();
+  buildWorld();
+}
+
+function showLevelComplete() {
+  if (gameState !== 'playing') return;
+  gameState = 'levelComplete';
+  
+  stopBackgroundMusic();
+  playVictorySound();
+  
+  console.log(`Showing level complete screen for level ${currentLevel}`);
+  if (levelCompleteScreen) levelCompleteScreen.style.display = 'flex';
+  if (completeLevelEl) completeLevelEl.textContent = `Level ${currentLevel} Complete!`;
+  if (finalScoreEl) finalScoreEl.textContent = `Score: ${globalScore}`;
+}
+
+function showGameCompletion() {
+  gameState = 'levelComplete';
+  if (levelCompleteScreen) levelCompleteScreen.style.display = 'none';
+  if (gameCompletionScreen) {
+    gameCompletionScreen.style.display = 'flex';
+    if (finalGameScoreEl) finalGameScoreEl.textContent = `Final Score: ${globalScore}`;
+  }
+}
+
+function showGameOver() {
+  if (gameState !== 'playing') return;
+  gameState = 'gameOver';
+  
+  stopBackgroundMusic();
+  playDefeatSound();
+  
+  if (gameOverScreen) gameOverScreen.style.display = 'flex';
+  if (gameOverScoreEl) gameOverScoreEl.textContent = `Score: ${globalScore} | Level: ${currentLevel}`;
+}
+
+function initializeEventListeners() {
+  const playBtn = document.getElementById('playBtn');
+  const nextLevelBtn = document.getElementById('nextLevelBtn');
+  const menuFromCompleteBtn = document.getElementById('menuFromCompleteBtn');
+  const retryBtn = document.getElementById('retryBtn');
+  const menuFromGameOverBtn = document.getElementById('menuFromGameOverBtn');
+  const menuFromCompletionBtn = document.getElementById('menuFromCompletionBtn');
+  const playAgainBtn = document.getElementById('playAgainBtn');
+
+  if (playBtn) {
+    playBtn.addEventListener('click', () => {
+      currentLevel = 1;
+      globalScore = 0;
+      showGame();
+    });
+  }
+
+  if (nextLevelBtn) {
+    nextLevelBtn.addEventListener('click', () => {
+      console.log(`Next level clicked. Current level: ${currentLevel}`);
+      if (currentLevel < 4) {
+        currentLevel++;
+        console.log(`Moving to level ${currentLevel}`);
+        showGame();
+      } else {
+        showGameCompletion();
+      }
+    });
+  }
+
+  if (menuFromCompleteBtn) {
+    menuFromCompleteBtn.addEventListener('click', () => {
+      currentLevel = 1;
+      globalScore = 0;
+      showMenu();
+    });
+  }
+
+  if (retryBtn) {
+    retryBtn.addEventListener('click', () => {
+      showGame();
+    });
+  }
+
+  if (menuFromGameOverBtn) {
+    menuFromGameOverBtn.addEventListener('click', () => {
+      currentLevel = 1;
+      globalScore = 0;
+      showMenu();
+    });
+  }
+
+  if (menuFromCompletionBtn) {
+    menuFromCompletionBtn.addEventListener('click', () => {
+      currentLevel = 1;
+      globalScore = 0;
+      showMenu();
+    });
+  }
+
+  if (playAgainBtn) {
+    playAgainBtn.addEventListener('click', () => {
+      currentLevel = 1;
+      globalScore = 0;
+      showGame();
+    });
+  }
+
+  if (muteBtn) {
+    muteBtn.addEventListener('click', updateMuteState);
+  }
+}
+
+// FIXED: PERFECT ORIENTATION HANDLING
+function checkOrientation() {
+  const isLandscape = window.innerWidth > window.innerHeight;
+  const rotateMessage = document.getElementById('rotateMessage');
+  
+  if (isLandscape) {
+    document.body.classList.add('landscape-mode');
+    if (rotateMessage) rotateMessage.style.display = 'none';
+  } else {
+    document.body.classList.remove('landscape-mode');
+    if (rotateMessage) rotateMessage.style.display = 'flex';
+  }
+  
+  // Update world dimensions
+  WORLD_W = window.innerWidth;
+  WORLD_H = window.innerHeight;
+  STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
+  
+  // Update sling anchor position for mobile
+  slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
+  
+  if (gameState === 'playing') {
+    resizeCanvas();
+    // buildWorld();
+  }
+}
+
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  // Only update dimensions, don't rebuild world
+  WORLD_W = window.innerWidth;
+  WORLD_H = window.innerHeight;
+  STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
+  slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
+});
+
+window.addEventListener('orientationchange', checkOrientation);
+
+// LAG FIX: Performance monitoring and cleanup
+setInterval(() => {
+  if (activeParticles.length > MAX_PARTICLES) {
+    const excess = activeParticles.splice(MAX_PARTICLES);
+    excess.forEach(particle => {
+      try { World.remove(world, particle); } catch (e) {}
+    });
+  }
+}, 1000);
+
+// Pre-load images when the script loads
+loadImages().then((success) => {
+  console.log('Initial image loading:', success ? 'Success' : 'Failed');
+}).catch((error) => {
+  console.error('Initial image loading error:', error);
+});
+
+// Fullscreen functionality
+// Fullscreen functionality
+const fullscreenBtn = document.getElementById('fullscreenBtn') as HTMLButtonElement;
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    // Enter fullscreen
+    document.documentElement.requestFullscreen().then(() => {
+      if (fullscreenBtn) fullscreenBtn.innerHTML = '✕'; // Exit fullscreen icon
+      // Force landscape on mobile (experimental API)
+      if (screen.orientation) {
+        const orientation = screen.orientation as any; // Type assertion for experimental API
+        if (orientation.lock) {
+          orientation.lock('landscape').catch(() => {
+            console.log('Orientation lock not supported');
+          });
+        }
+      }
+    }).catch(err => {
+      console.log('Fullscreen request failed:', err);
+    });
+  } else {
+    // Exit fullscreen
+    document.exitFullscreen().then(() => {
+      if (fullscreenBtn) fullscreenBtn.innerHTML = '⛶'; // Enter fullscreen icon
+      if (screen.orientation) {
+        const orientation = screen.orientation as any; // Type assertion for experimental API
+        if (orientation.unlock) {
+          orientation.unlock();
+        }
+      }
+    });
+  }
+}
+
+// Initialize audio system
+initializeAudio();
+
+initializeEventListeners();
+resizeCanvas();
+checkOrientation();
+showMenu();
