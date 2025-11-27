@@ -77,20 +77,16 @@ function createAndPlayAudio(src: string, volume: number = 0.7, loop: boolean = f
     audio.volume = volume;
     audio.loop = loop;
     
-    audio.addEventListener('error', (e) => {
-      console.log('Audio element error:', e, 'Src:', src);
-    });
-    
-    const playPromise = audio.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(error => {
-        console.log('Audio play failed:', error, 'Src:', src);
+    // Simple play with error handling
+    setTimeout(() => {
+      audio.play().catch(error => {
+        console.log('Audio play failed:', error);
       });
-    }
+    }, 50);
     
     return audio;
   } catch (error) {
-    console.log('Audio creation failed:', error, 'Src:', src);
+    console.log('Audio creation failed:', error);
     return null;
   }
 }
@@ -137,28 +133,28 @@ function playVictorySound() {
   
   isPlayingVictoryOrDefeat = true;
   
-  if (victorySound) {
-    victorySound.pause();
-    victorySound = null;
-  }
+  // Create new audio instance each time for better iOS compatibility
+  victorySound = new Audio(AUDIO_PATHS.victory);
+  victorySound.volume = 0.7;
   
-  victorySound = createAndPlayAudio(AUDIO_PATHS.victory, 0.7, false);
+  // iOS FIX: Use a small timeout to ensure the audio context is ready
+  setTimeout(() => {
+    victorySound!.play().catch(error => {
+      console.log('Victory sound play failed:', error);
+    });
+  }, 100);
   
-  if (victorySound) {
-    victorySound.addEventListener('ended', () => {
-      console.log('Victory sound ended');
-      isPlayingVictoryOrDefeat = false;
-      victorySound = null;
-    });
-    
-    victorySound.addEventListener('error', () => {
-      console.log('Victory sound error');
-      isPlayingVictoryOrDefeat = false;
-      victorySound = null;
-    });
-  } else {
+  victorySound.addEventListener('ended', () => {
+    console.log('Victory sound ended');
     isPlayingVictoryOrDefeat = false;
-  }
+    victorySound = null;
+  });
+  
+  victorySound.addEventListener('error', () => {
+    console.log('Victory sound error');
+    isPlayingVictoryOrDefeat = false;
+    victorySound = null;
+  });
 }
 
 // Play defeat sound  
@@ -171,28 +167,28 @@ function playDefeatSound() {
   
   isPlayingVictoryOrDefeat = true;
   
-  if (defeatSound) {
-    defeatSound.pause();
-    defeatSound = null;
-  }
+  // Create new audio instance each time for better iOS compatibility
+  defeatSound = new Audio(AUDIO_PATHS.defeat);
+  defeatSound.volume = 0.7;
   
-  defeatSound = createAndPlayAudio(AUDIO_PATHS.defeat, 0.7, false);
+  // iOS FIX: Use a small timeout to ensure the audio context is ready
+  setTimeout(() => {
+    defeatSound!.play().catch(error => {
+      console.log('Defeat sound play failed:', error);
+    });
+  }, 100);
   
-  if (defeatSound) {
-    defeatSound.addEventListener('ended', () => {
-      console.log('Defeat sound ended');
-      isPlayingVictoryOrDefeat = false;
-      defeatSound = null;
-    });
-    
-    defeatSound.addEventListener('error', () => {
-      console.log('Defeat sound error');
-      isPlayingVictoryOrDefeat = false;
-      defeatSound = null;
-    });
-  } else {
+  defeatSound.addEventListener('ended', () => {
+    console.log('Defeat sound ended');
     isPlayingVictoryOrDefeat = false;
-  }
+    defeatSound = null;
+  });
+  
+  defeatSound.addEventListener('error', () => {
+    console.log('Defeat sound error');
+    isPlayingVictoryOrDefeat = false;
+    defeatSound = null;
+  });
 }
 
 // Update mute functionality
