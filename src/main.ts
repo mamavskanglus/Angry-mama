@@ -1855,6 +1855,7 @@ function initializeEventListeners() {
 }
 
 // FIXED: PERFECT ORIENTATION HANDLING
+// FIXED: PERFECT ORIENTATION HANDLING
 function checkOrientation() {
   const isLandscape = window.innerWidth > window.innerHeight;
   const rotateMessage = document.getElementById('rotateMessage');
@@ -1878,13 +1879,13 @@ function checkOrientation() {
   
   if (gameState === 'playing') {
     resizeCanvas();
-    // buildWorld();
   }
 }
 
+// UPDATED: Better event listeners for orientation changes
 window.addEventListener('resize', () => {
+  checkOrientation(); // Add this call
   resizeCanvas();
-  // Only update dimensions, don't rebuild world
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
@@ -1892,17 +1893,16 @@ window.addEventListener('resize', () => {
   slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
 });
 
-window.addEventListener('orientationchange', checkOrientation);
+window.addEventListener('orientationchange', () => {
+  // Wait a bit for the orientation to actually change
+  setTimeout(() => {
+    checkOrientation();
+    resizeCanvas();
+  }, 100);
+});
 
-// LAG FIX: Performance monitoring and cleanup
-setInterval(() => {
-  if (activeParticles.length > MAX_PARTICLES) {
-    const excess = activeParticles.splice(MAX_PARTICLES);
-    excess.forEach(particle => {
-      try { World.remove(world, particle); } catch (e) {}
-    });
-  }
-}, 1000);
+// IMPORTANT: Call this immediately when page loads
+checkOrientation();
 
 // Pre-load images when the script loads
 loadImages().then((success) => {
@@ -1951,5 +1951,4 @@ initializeAudio();
 
 initializeEventListeners();
 resizeCanvas();
-checkOrientation();
 showMenu();

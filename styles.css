@@ -28,7 +28,7 @@ body {
 
 /* Force Landscape Orientation */
 .rotate-message {
-  display: flex;
+  display: none; /* Default to hidden */
   position: fixed;
   top: 0;
   left: 0;
@@ -42,6 +42,28 @@ body {
   z-index: 10000;
   text-align: center;
   padding: 2rem;
+}
+
+/* Show rotate message ONLY in portrait mode */
+@media screen and (orientation: portrait) {
+  .rotate-message {
+    display: flex !important;
+  }
+  
+  body:not(.landscape-mode) .rotate-message {
+    display: flex !important;
+  }
+}
+
+/* Hide rotate message in landscape mode */
+@media screen and (orientation: landscape) {
+  .rotate-message {
+    display: none !important;
+  }
+  
+  body.landscape-mode .rotate-message {
+    display: none !important;
+  }
 }
 
 .rotate-icon {
