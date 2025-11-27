@@ -403,13 +403,12 @@ function spawnBirds(types: ('red' | 'blue' | 'yellow')[]) {
       label: 'bird',
       restitution: 0.4,
       friction: 0.8,
-      frictionAir: 0.005, // REDUCED from 0.008 - less air drag
+      frictionAir: 0.005,
       density: 0.003,
       collisionFilter: { group: -1 }
     });
     World.add(world, body);
     
-    // FIXED: Don't make birds static initially
     Body.setStatic(body, false);
     
     birds.push({ body, launched: false, type: types[i], launchTime: 0 });
@@ -423,23 +422,18 @@ function attachBirdToSling(index: number) {
   currentBirdIndex = index;
   const birdObj = birds[index];
 
-  // Remove old constraint
   if (slingConstraint) {
     World.remove(world, slingConstraint);
     slingConstraint = null;
   }
 
-  // Reset bird completely
   Body.setPosition(birdObj.body, { x: slingAnchor.x, y: slingAnchor.y });
   Body.setVelocity(birdObj.body, { x: 0, y: 0 });
   Body.setAngularVelocity(birdObj.body, 0);
   Body.setAngle(birdObj.body, 0);
-  Body.setStatic(birdObj.body, false); // Make sure it's dynamic
+  Body.setStatic(birdObj.body, false);
 
   birdObj.launched = false;
-  
-  // Don't create constraint - we'll handle dragging manually
-  // The constraint will only exist during rendering for visual
 }
 
 function addStableBlock(x: number, y: number, w: number, h: number, type: Block['type'], health: number): Matter.Body {
@@ -948,44 +942,41 @@ function buildTwoStory(x: number) {
   addPig(x, baseY - 185, 6, false);
 }
 
+// FIXED: Level 3 - Now a 2-story building but keeping all pigs including boss
 function buildThreeStory(x: number) {
   const baseY = STRUCTURE_BASE_Y;
   
-  const platform = Bodies.rectangle(x, baseY, 550, 30, {
+  const platform = Bodies.rectangle(x, baseY, 500, 30, {
     isStatic: true, label: 'platform', friction: 0.9, restitution: 0.1
   });
   World.add(world, platform);
 
-  addStableBlock(x - 150, baseY - 40, 35, 80, 'stone', 6);
-  addStableBlock(x + 150, baseY - 40, 35, 80, 'stone', 6);
-  addStableBlock(x, baseY - 80, 320, 25, 'stone', 5);
+  // First story - stone foundation
+  addStableBlock(x - 130, baseY - 35, 35, 70, 'stone', 6);
+  addStableBlock(x + 130, baseY - 35, 35, 70, 'stone', 6);
+  addStableBlock(x, baseY - 70, 300, 25, 'stone', 5);
 
-  addStableBlock(x - 130, baseY - 120, 32, 80, 'stone', 5);
-  addStableBlock(x + 130, baseY - 120, 32, 80, 'stone', 5);
-  addStableBlock(x, baseY - 160, 280, 25, 'stone', 4);
+  // Second story - wood structure
+  addStableBlock(x - 110, baseY - 105, 30, 70, 'wood', 4);
+  addStableBlock(x + 110, baseY - 105, 30, 70, 'wood', 4);
+  addStableBlock(x, baseY - 140, 260, 25, 'wood', 3);
 
-  addStableBlock(x - 110, baseY - 200, 30, 80, 'stone', 4);
-  addStableBlock(x + 110, baseY - 200, 30, 80, 'stone', 4);
-  addStableBlock(x, baseY - 240, 240, 25, 'stone', 3);
+  // Windows
+  addStableBlock(x - 100, baseY - 50, 35, 40, 'glass', 1);
+  addStableBlock(x + 100, baseY - 50, 35, 40, 'glass', 1);
+  addStableBlock(x - 90, baseY - 120, 30, 35, 'glass', 1);
+  addStableBlock(x + 90, baseY - 120, 30, 35, 'glass', 1);
 
-  addStableBlock(x - 90, baseY - 280, 28, 80, 'wood', 3);
-  addStableBlock(x + 90, baseY - 280, 28, 80, 'wood', 3);
-  addStableBlock(x, baseY - 320, 200, 25, 'wood', 2);
+  // Internal supports
+  addStableBlock(x, baseY - 85, 170, 15, 'wood', 2);
+  addStableBlock(x, baseY - 155, 220, 20, 'wood', 2);
 
-  addStableBlock(x - 100, baseY - 55, 32, 45, 'glass', 1);
-  addStableBlock(x + 100, baseY - 55, 32, 45, 'glass', 1);
-  addStableBlock(x - 90, baseY - 135, 30, 40, 'glass', 1);
-  addStableBlock(x + 90, baseY - 135, 30, 40, 'glass', 1);
-  addStableBlock(x - 70, baseY - 215, 28, 35, 'glass', 1);
-  addStableBlock(x + 70, baseY - 215, 28, 35, 'glass', 1);
-
-  addStableBlock(x, baseY - 350, 220, 20, 'wood', 2);
-
-  addPig(x - 100, baseY - 50, 8, false);
-  addPig(x + 100, baseY - 50, 8, false);
-  addPig(x - 80, baseY - 130, 8, false);
-  addPig(x + 80, baseY - 130, 8, false);
-  addPig(x, baseY - 270, 12, true);
+  // Pigs - keeping all pigs including boss
+  addPig(x - 90, baseY - 45, 8, false);
+  addPig(x + 90, baseY - 45, 8, false);
+  addPig(x - 70, baseY - 115, 8, false);
+  addPig(x + 70, baseY - 115, 8, false);
+  addPig(x, baseY - 125, 12, true); // Boss pig in the center
 }
 
 function buildFinalLevel(x: number) {
@@ -1027,7 +1018,6 @@ let slingAnchor = { x: 170, y: 0 };
 
 // FIXED: PERFECT WORLD BUILDING
 function buildWorld() {
-  console.trace('buildWorld() called from:');
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
@@ -1109,12 +1099,11 @@ function buildWorld() {
       break;
   }
 
-  // UPDATED: More birds per level
   const birdTypesList: ('red' | 'blue' | 'yellow')[][] = [
-    ['red', 'red', 'red', 'red', 'red'], // Level 1: 5 birds now!
-    ['red', 'blue', 'red', 'blue', 'red'], // Level 2: 5 birds
-    ['red', 'blue', 'yellow', 'red', 'blue'], // Level 3: 5 birds
-    ['red', 'blue', 'yellow', 'blue', 'yellow', 'red'] // Level 4: 6 birds
+    ['red', 'red', 'red', 'red', 'red'],
+    ['red', 'blue', 'red', 'blue', 'red'],
+    ['red', 'blue', 'yellow', 'red', 'blue'],
+    ['red', 'blue', 'yellow', 'blue', 'yellow', 'red']
   ];
   
   const birdTypes = birdTypesList[currentLevel - 1] || ['red', 'red', 'red'];
@@ -1132,7 +1121,6 @@ function buildWorld() {
 function autoAdvance() {
   if (gameState !== 'playing') return;
 
-  // Check pig fall damage (keep this part as is)
   for (let i = pigs.length - 1; i >= 0; i--) {
     const pig = pigs[i];
     const fallDistance = pig.body.position.y - pig.lastY;
@@ -1152,7 +1140,6 @@ function autoAdvance() {
     if (pig.body) pig.lastY = pig.body.position.y;
   }
 
-  // Check if level is complete
   if (pigs.length === 0) {
     console.log(`Level ${currentLevel} completed! No pigs left.`);
     setTimeout(() => {
@@ -1163,7 +1150,6 @@ function autoAdvance() {
     return;
   }
 
-  // Clean up old birds
   const now = Date.now();
   for (let i = birds.length - 1; i >= 0; i--) {
     const b = birds[i];
@@ -1180,7 +1166,6 @@ function autoAdvance() {
     }
   }
 
-  // FIXED: Auto-advance to next bird
   const current = birds[currentBirdIndex];
   
   if (current && current.launched) {
@@ -1189,12 +1174,10 @@ function autoAdvance() {
                           current.body.position.x > WORLD_W + 100 ||
                           current.body.position.y > WORLD_H + 100;
     
-    // Bird has stopped or went out of bounds
     if (speed < 0.5 || isOutOfBounds) {
       advanceTimer++;
       
-      // Wait a bit before attaching next bird
-      if (advanceTimer > 60) { // Wait 1 second (60 frames at 60fps)
+      if (advanceTimer > 60) {
         const nextIndex = birds.findIndex(b => !b.launched);
         
         if (nextIndex >= 0) {
@@ -1203,7 +1186,6 @@ function autoAdvance() {
           attachBirdToSling(currentBirdIndex);
           advanceTimer = 0;
         } else {
-          // All birds used, check game over
           if (advanceTimer > 180 && pigs.length > 0) {
             console.log('All birds used, pigs remain - GAME OVER');
             showGameOver();
@@ -1212,11 +1194,9 @@ function autoAdvance() {
         }
       }
     } else {
-      // Bird still moving, reset timer
       advanceTimer = 0;
     }
   } else if (!current) {
-    // No current bird, try to find one
     const nextIndex = birds.findIndex(b => !b.launched);
     if (nextIndex >= 0) {
       currentBirdIndex = nextIndex;
@@ -1243,7 +1223,6 @@ canvas.addEventListener('pointerdown', (ev) => {
   if (distToBird < BIRD_RADIUS * 3) {
     isDragging = true;
     
-    // Remove the elastic constraint so we can drag freely
     if (slingConstraint) {
       World.remove(world, slingConstraint);
       slingConstraint = null;
@@ -1264,22 +1243,18 @@ canvas.addEventListener('pointermove', (ev) => {
   const mouseX = ev.clientX - rect.left;
   const mouseY = ev.clientY - rect.top;
   
-  // Calculate drag position relative to anchor
   let dragX = mouseX - slingAnchor.x;
   let dragY = mouseY - slingAnchor.y;
   const dragDist = Math.hypot(dragX, dragY);
   
-  // Limit drag distance
   const maxDrag = 150;
   if (dragDist > maxDrag) {
     dragX = (dragX / dragDist) * maxDrag;
     dragY = (dragY / dragDist) * maxDrag;
   }
   
-  // Don't let bird go too far forward (right)
   if (dragX > 30) dragX = 30;
   
-  // Move the bird
   Body.setPosition(current.body, {
     x: slingAnchor.x + dragX,
     y: slingAnchor.y + dragY
@@ -1302,31 +1277,25 @@ canvas.addEventListener('pointerup', (ev) => {
   const dragDist = Math.hypot(dragX, dragY);
   
   if (dragDist > 15) {
-    // LAUNCH!
     current.launched = true;
     current.launchTime = Date.now();
     
-    // EVEN MORE POWER!
-    const launchPower = 0.22; // Increased from 0.15 to 0.22
+    const launchPower = 0.22;
     const velX = -dragX * launchPower;
     const velY = -dragY * launchPower;
     
-    // Make sure bird is dynamic
     Body.setStatic(current.body, false);
     
-    // Apply velocity
     Body.setVelocity(current.body, { x: velX, y: velY });
     
-    // Higher max speed
     const speed = Body.getSpeed(current.body);
-    if (speed > 75) { // Increased from 60 to 75
+    if (speed > 75) {
       Body.setSpeed(current.body, 75);
     }
     
     console.log('LAUNCHED! Velocity:', velX.toFixed(2), velY.toFixed(2), 'Speed:', speed.toFixed(2));
     
   } else {
-    // Drag was too small, snap back
     Body.setPosition(current.body, { x: slingAnchor.x, y: slingAnchor.y });
     attachBirdToSling(currentBirdIndex);
   }
@@ -1368,7 +1337,6 @@ function renderFrame() {
 
   drawGrass(ctx);
 
-  // Render blocks with damage states
   for (const blk of blocks) {
     const b = blk.body;
     ctx.save();
@@ -1493,7 +1461,6 @@ function renderFrame() {
     ctx.restore();
   }
 
-  // RENDER PIGS
   for (const pig of pigs) {
     const p = pig.body;
     ctx.save();
@@ -1534,7 +1501,6 @@ function renderFrame() {
       drawOriginalPig(pig, r);
     }
 
-    // Health bar
     const healthColor = pig.health > pig.maxHealth * 0.5 ? '#4CAF50' : pig.health > 1 ? '#FF9800' : '#F44336';
     ctx.fillStyle = healthColor;
     ctx.fillRect(-r, -r - 10, (pig.health / pig.maxHealth) * (r * 2), 4);
@@ -1542,7 +1508,6 @@ function renderFrame() {
     ctx.restore();
   }
 
-  // RENDER SLINGSHOT
   const sx = slingAnchor.x;
   const sy = slingAnchor.y;
   const groundY = WORLD_H - GROUND_HEIGHT;
@@ -1569,7 +1534,6 @@ function renderFrame() {
   ctx.strokeRect(-8, -80, 16, 80);
   ctx.restore();
 
-  // UPDATED: RENDER SLINGSHOT BANDS - Tighter and more visible
   if (isDragging) {
     const current = birds[currentBirdIndex];
     if (current) {
@@ -1578,24 +1542,20 @@ function renderFrame() {
       const rightX = sx + 28;
       const topY = sy - 10;
 
-      // Draw thick, tight elastic bands
-      ctx.lineWidth = 8; // Was 6, now thicker
-      ctx.strokeStyle = 'rgba(139,69,19,0.95)'; // Darker brown, more opaque
+      ctx.lineWidth = 8;
+      ctx.strokeStyle = 'rgba(139,69,19,0.95)';
       ctx.lineCap = 'round';
 
-      // Left band
       ctx.beginPath();
       ctx.moveTo(leftX, topY);
       ctx.lineTo(bp.x, bp.y);
       ctx.stroke();
 
-      // Right band
       ctx.beginPath();
       ctx.moveTo(rightX, topY);
       ctx.lineTo(bp.x, bp.y);
       ctx.stroke();
 
-      // Add highlight for 3D effect
       ctx.lineWidth = 3;
       ctx.strokeStyle = 'rgba(160,82,45,0.6)';
       ctx.beginPath();
@@ -1606,7 +1566,6 @@ function renderFrame() {
       ctx.stroke();
     }
   } else {
-    // Resting position
     const current = birds[currentBirdIndex];
     if (current && !current.launched) {
       const bp = current.body.position;
@@ -1630,7 +1589,6 @@ function renderFrame() {
     }
   }
 
-  // RENDER BIRDS
   for (let i = 0; i < birds.length; i++) {
     const br = birds[i];
     const b = br.body;
@@ -1667,7 +1625,6 @@ function renderFrame() {
     ctx.restore();
   }
 
-  // UPDATED: TRAJECTORY PREVIEW with matching power
   if (isDragging) {
     const current = birds[currentBirdIndex];
     if (current) {
@@ -1676,7 +1633,7 @@ function renderFrame() {
       const dragDist = Math.hypot(dragX, dragY);
 
       if (dragDist > 15) {
-        const launchPower = 0.22; // Match launch power!
+        const launchPower = 0.22;
         const velX = -dragX * launchPower;
         const velY = -dragY * launchPower;
 
@@ -1686,7 +1643,6 @@ function renderFrame() {
         ctx.beginPath();
         ctx.moveTo(current.body.position.x, current.body.position.y);
 
-        // Simulate trajectory
         for (let t = 0; t < 100; t += 2) {
           const x = current.body.position.x + velX * t;
           const y = current.body.position.y + velY * t + 0.5 * world.gravity.y * t * t;
@@ -1782,32 +1738,28 @@ function showGameOver() {
   if (gameOverScoreEl) gameOverScoreEl.textContent = `Score: ${globalScore} | Level: ${currentLevel}`;
 }
 
-// FIXED: Fullscreen functionality
-// FIXED: Fullscreen functionality
-// SIMPLIFIED: Fullscreen functionality
+// FIXED: SIMPLE FULLSCREEN FUNCTION
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
-    // Enter fullscreen
-    document.documentElement.requestFullscreen().catch(err => {
-      console.log('Fullscreen request failed:', err);
-    });
+    document.documentElement.requestFullscreen();
   } else {
-    // Exit fullscreen
     document.exitFullscreen();
   }
 }
+
+// FIXED: Handle fullscreen changes
 function handleFullscreenChange() {
-  const doc = document as any;
-  const isFullscreen = doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement;
+  const isFullscreen = !!document.fullscreenElement;
   
   if (fullscreenBtn) {
     fullscreenBtn.innerHTML = isFullscreen ? '✕' : '⛶';
   }
   
-  // Force resize when entering/exiting fullscreen
+  // Rebuild world when fullscreen changes
   setTimeout(() => {
-    resizeCanvas();
-    checkOrientation();
+    if (gameState === 'playing') {
+      buildWorld();
+    }
   }, 100);
 }
 
@@ -1902,12 +1854,9 @@ function checkOrientation() {
     if (rotateMessage) rotateMessage.style.display = 'flex';
   }
   
-  // Update world dimensions
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  
-  // Update sling anchor position for mobile
   slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
   slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
   
@@ -1916,7 +1865,6 @@ function checkOrientation() {
   }
 }
 
-// UPDATED: Better event listeners for orientation changes
 window.addEventListener('resize', () => {
   checkOrientation();
   resizeCanvas();
@@ -1928,7 +1876,6 @@ window.addEventListener('resize', () => {
 });
 
 window.addEventListener('orientationchange', () => {
-  // Wait a bit for the orientation to actually change
   setTimeout(() => {
     checkOrientation();
     resizeCanvas();
@@ -1937,9 +1884,6 @@ window.addEventListener('orientationchange', () => {
 
 // Add fullscreen change event listeners
 document.addEventListener('fullscreenchange', handleFullscreenChange);
-document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-document.addEventListener('MSFullscreenChange', handleFullscreenChange);
 
 // IMPORTANT: Call this immediately when page loads
 checkOrientation();
