@@ -31,6 +31,7 @@ const levelCompleteScreen = document.getElementById('levelCompleteScreen') as HT
 const gameOverScreen = document.getElementById('gameOverScreen') as HTMLDivElement;
 const gameCompletionScreen = document.getElementById('gameCompletionScreen') as HTMLDivElement;
 const muteBtn = document.getElementById('muteBtn') as HTMLButtonElement;
+const fullscreenBtn = document.getElementById('fullscreenBtn') as HTMLButtonElement;
 
 const scoreEl = document.getElementById('score') as HTMLDivElement;
 const levelEl = document.getElementById('level') as HTMLDivElement;
@@ -1727,7 +1728,7 @@ function showMenu() {
   if (gameCompletionScreen) gameCompletionScreen.style.display = 'none';
   if (canvas) canvas.style.display = 'none';
   if (muteBtn) muteBtn.style.display = 'none';
-  if (fullscreenBtn) fullscreenBtn.style.display = 'none'; // ADD THIS LINE
+  if (fullscreenBtn) fullscreenBtn.style.display = 'none';
 }
 
 function showGame() {
@@ -1742,7 +1743,7 @@ function showGame() {
   if (gameCompletionScreen) gameCompletionScreen.style.display = 'none';
   if (canvas) canvas.style.display = 'block';
   if (muteBtn) muteBtn.style.display = 'block';
-  if (fullscreenBtn) fullscreenBtn.style.display = 'flex'; // ADD THIS LINE
+  if (fullscreenBtn) fullscreenBtn.style.display = 'flex';
   
   playLevelMusic();
   buildWorld();
@@ -1781,6 +1782,35 @@ function showGameOver() {
   if (gameOverScoreEl) gameOverScoreEl.textContent = `Score: ${globalScore} | Level: ${currentLevel}`;
 }
 
+// FIXED: Fullscreen functionality
+// FIXED: Fullscreen functionality
+// SIMPLIFIED: Fullscreen functionality
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    // Enter fullscreen
+    document.documentElement.requestFullscreen().catch(err => {
+      console.log('Fullscreen request failed:', err);
+    });
+  } else {
+    // Exit fullscreen
+    document.exitFullscreen();
+  }
+}
+function handleFullscreenChange() {
+  const doc = document as any;
+  const isFullscreen = doc.fullscreenElement || doc.webkitFullscreenElement || doc.mozFullScreenElement || doc.msFullscreenElement;
+  
+  if (fullscreenBtn) {
+    fullscreenBtn.innerHTML = isFullscreen ? '✕' : '⛶';
+  }
+  
+  // Force resize when entering/exiting fullscreen
+  setTimeout(() => {
+    resizeCanvas();
+    checkOrientation();
+  }, 100);
+}
+
 function initializeEventListeners() {
   const playBtn = document.getElementById('playBtn');
   const nextLevelBtn = document.getElementById('nextLevelBtn');
@@ -1789,6 +1819,11 @@ function initializeEventListeners() {
   const menuFromGameOverBtn = document.getElementById('menuFromGameOverBtn');
   const menuFromCompletionBtn = document.getElementById('menuFromCompletionBtn');
   const playAgainBtn = document.getElementById('playAgainBtn');
+
+  // FIXED: Add fullscreen button event listener
+  if (fullscreenBtn) {
+    fullscreenBtn.addEventListener('click', toggleFullscreen);
+  }
 
   if (playBtn) {
     playBtn.addEventListener('click', () => {
@@ -1855,7 +1890,6 @@ function initializeEventListeners() {
 }
 
 // FIXED: PERFECT ORIENTATION HANDLING
-// FIXED: PERFECT ORIENTATION HANDLING
 function checkOrientation() {
   const isLandscape = window.innerWidth > window.innerHeight;
   const rotateMessage = document.getElementById('rotateMessage');
@@ -1884,7 +1918,7 @@ function checkOrientation() {
 
 // UPDATED: Better event listeners for orientation changes
 window.addEventListener('resize', () => {
-  checkOrientation(); // Add this call
+  checkOrientation();
   resizeCanvas();
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
@@ -1901,6 +1935,12 @@ window.addEventListener('orientationchange', () => {
   }, 100);
 });
 
+// Add fullscreen change event listeners
+document.addEventListener('fullscreenchange', handleFullscreenChange);
+document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
 // IMPORTANT: Call this immediately when page loads
 checkOrientation();
 
@@ -1910,41 +1950,6 @@ loadImages().then((success) => {
 }).catch((error) => {
   console.error('Initial image loading error:', error);
 });
-
-// Fullscreen functionality
-// Fullscreen functionality
-const fullscreenBtn = document.getElementById('fullscreenBtn') as HTMLButtonElement;
-
-function toggleFullscreen() {
-  if (!document.fullscreenElement) {
-    // Enter fullscreen
-    document.documentElement.requestFullscreen().then(() => {
-      if (fullscreenBtn) fullscreenBtn.innerHTML = '✕'; // Exit fullscreen icon
-      // Force landscape on mobile (experimental API)
-      if (screen.orientation) {
-        const orientation = screen.orientation as any; // Type assertion for experimental API
-        if (orientation.lock) {
-          orientation.lock('landscape').catch(() => {
-            console.log('Orientation lock not supported');
-          });
-        }
-      }
-    }).catch(err => {
-      console.log('Fullscreen request failed:', err);
-    });
-  } else {
-    // Exit fullscreen
-    document.exitFullscreen().then(() => {
-      if (fullscreenBtn) fullscreenBtn.innerHTML = '⛶'; // Enter fullscreen icon
-      if (screen.orientation) {
-        const orientation = screen.orientation as any; // Type assertion for experimental API
-        if (orientation.unlock) {
-          orientation.unlock();
-        }
-      }
-    });
-  }
-}
 
 // Initialize audio system
 initializeAudio();
