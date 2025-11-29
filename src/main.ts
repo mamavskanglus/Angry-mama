@@ -2,6 +2,40 @@ import * as Matter from 'matter-js';
 
 const { Engine, World, Bodies, Body, Runner, Events, Constraint, Composite } = Matter;
 
+// ============================================
+// CRITICAL FIX 2: iOS AUDIO - CREATE AUDIO CONTEXT ON USER INTERACTION
+// ============================================
+let audioContext: AudioContext | null = null;
+let audioUnlocked = false;
+
+// Initialize audio context on ANY user interaction
+function initAudioContext() {
+  if (audioUnlocked) return;
+  
+  try {
+    // Create audio context
+    const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
+    audioContext = new AudioContextClass();
+    
+    // Resume if suspended (iOS requirement)
+    if (audioContext.state === 'suspended') {
+      audioContext.resume();
+    }
+    
+    // Play silent audio to unlock
+    const buffer = audioContext.createBuffer(1, 1, 22050);
+    const source = audioContext.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioContext.destination);
+    source.start(0);
+    
+    console.log('✅ Audio context unlocked!');
+    audioUnlocked = true;
+  } catch (e) {
+    console.log('❌ Audio context failed:', e);
+  }
+}
+
 let gameState: 'menu' | 'playing' | 'levelComplete' | 'gameOver' = 'menu';
 let currentLevel = 1;
 let globalScore = 0;
@@ -123,121 +157,150 @@ function playLevelMusic() {
   }
 }
 
-// ============================================
-// FIX 2 & 3: iOS AUDIO FIX & STOP AUDIO ON NEW GAME
-// ============================================
-// Play victory sound
+// COMPLETELY REPLACE playVictorySound:
 function playVictorySound() {
   if (isMuted) return;
   
-  console.log('Playing victory sound');
+  console.log('🎵 Attempting to play victory sound');
   
+  // Stop background music
   stopBackgroundMusic();
   
-  // Stop any existing victory/defeat sounds
+  // Stop any existing sounds
   if (victorySound) {
-    victorySound.pause();
-    victorySound.currentTime = 0;
+    try {
+      victorySound.pause();
+      victorySound.currentTime = 0;
+    } catch (e) {}
     victorySound = null;
   }
   if (defeatSound) {
-    defeatSound.pause();
-    defeatSound.currentTime = 0;
+    try {
+      defeatSound.pause();
+      defeatSound.currentTime = 0;
+    } catch (e) {}
     defeatSound = null;
   }
   
   isPlayingVictoryOrDefeat = true;
   
-  // iOS FIX: Create audio with proper user interaction context
+  // Create NEW audio element every time
   victorySound = new Audio(AUDIO_PATHS.victory);
   victorySound.volume = 0.7;
+  victorySound.preload = 'auto';
   
-  // iOS FIX: Play immediately within user interaction
-  const playPromise = victorySound.play();
+  // iOS FIX: Load and play in sequence
+  victorySound.load();
   
-  if (playPromise !== undefined) {
-    playPromise.then(() => {
-      console.log('Victory sound playing successfully');
-    }).catch(error => {
-      console.log('Victory sound play failed:', error);
-      // Fallback: try playing with user interaction
-      document.addEventListener('touchstart', function playOnTouch() {
-        if (victorySound) {
-          victorySound.play().catch(e => console.log('Retry failed:', e));
-        }
-        document.removeEventListener('touchstart', playOnTouch);
-      }, { once: true });
-    });
+  // Try to play IMMEDIATELY (within user interaction context)
+  const playAttempt = victorySound.play();
+  
+  if (playAttempt !== undefined) {
+    playAttempt
+      .then(() => {
+        console.log('✅ Victory sound playing!');
+      })
+      .catch((error) => {
+        console.error('❌ Victory sound failed:', error);
+        
+        // FALLBACK: Try on next touch
+        const retryPlay = () => {
+          if (victorySound && isPlayingVictoryOrDefeat) {
+            victorySound.play()
+              .then(() => console.log('✅ Victory sound playing (retry)!'))
+              .catch(e => console.log('❌ Retry failed:', e));
+          }
+        };
+        
+        document.addEventListener('touchstart', retryPlay, { once: true });
+        document.addEventListener('click', retryPlay, { once: true });
+      });
   }
   
-  victorySound.addEventListener('ended', () => {
+  victorySound.onended = () => {
     console.log('Victory sound ended');
     isPlayingVictoryOrDefeat = false;
     victorySound = null;
-  });
+  };
   
-  victorySound.addEventListener('error', () => {
-    console.log('Victory sound error');
+  victorySound.onerror = (e) => {
+    console.error('Victory sound error:', e);
     isPlayingVictoryOrDefeat = false;
     victorySound = null;
-  });
+  };
 }
 
-// Play defeat sound  
+// COMPLETELY REPLACE playDefeatSound:
 function playDefeatSound() {
   if (isMuted) return;
   
-  console.log('Playing defeat sound');
+  console.log('🎵 Attempting to play defeat sound');
   
+  // Stop background music
   stopBackgroundMusic();
   
-  // Stop any existing victory/defeat sounds
+  // Stop any existing sounds
   if (victorySound) {
-    victorySound.pause();
-    victorySound.currentTime = 0;
+    try {
+      victorySound.pause();
+      victorySound.currentTime = 0;
+    } catch (e) {}
     victorySound = null;
   }
   if (defeatSound) {
-    defeatSound.pause();
-    defeatSound.currentTime = 0;
+    try {
+      defeatSound.pause();
+      defeatSound.currentTime = 0;
+    } catch (e) {}
     defeatSound = null;
   }
   
   isPlayingVictoryOrDefeat = true;
   
-  // iOS FIX: Create audio with proper user interaction context
+  // Create NEW audio element every time
   defeatSound = new Audio(AUDIO_PATHS.defeat);
   defeatSound.volume = 0.7;
+  defeatSound.preload = 'auto';
   
-  // iOS FIX: Play immediately within user interaction
-  const playPromise = defeatSound.play();
+  // iOS FIX: Load and play in sequence
+  defeatSound.load();
   
-  if (playPromise !== undefined) {
-    playPromise.then(() => {
-      console.log('Defeat sound playing successfully');
-    }).catch(error => {
-      console.log('Defeat sound play failed:', error);
-      // Fallback: try playing with user interaction
-      document.addEventListener('touchstart', function playOnTouch() {
-        if (defeatSound) {
-          defeatSound.play().catch(e => console.log('Retry failed:', e));
-        }
-        document.removeEventListener('touchstart', playOnTouch);
-      }, { once: true });
-    });
+  // Try to play IMMEDIATELY (within user interaction context)
+  const playAttempt = defeatSound.play();
+  
+  if (playAttempt !== undefined) {
+    playAttempt
+      .then(() => {
+        console.log('✅ Defeat sound playing!');
+      })
+      .catch((error) => {
+        console.error('❌ Defeat sound failed:', error);
+        
+        // FALLBACK: Try on next touch
+        const retryPlay = () => {
+          if (defeatSound && isPlayingVictoryOrDefeat) {
+            defeatSound.play()
+              .then(() => console.log('✅ Defeat sound playing (retry)!'))
+              .catch(e => console.log('❌ Retry failed:', e));
+          }
+        };
+        
+        document.addEventListener('touchstart', retryPlay, { once: true });
+        document.addEventListener('click', retryPlay, { once: true });
+      });
   }
   
-  defeatSound.addEventListener('ended', () => {
+  defeatSound.onended = () => {
     console.log('Defeat sound ended');
     isPlayingVictoryOrDefeat = false;
     defeatSound = null;
-  });
+  };
   
-  defeatSound.addEventListener('error', () => {
-    console.log('Defeat sound error');
+  defeatSound.onerror = (e) => {
+    console.error('Defeat sound error:', e);
     isPlayingVictoryOrDefeat = false;
     defeatSound = null;
-  });
+  };
 }
 
 // Update mute functionality
@@ -987,7 +1050,6 @@ function buildTwoStory(x: number) {
   addPig(x, baseY - 185, 6, false);
 }
 
-// FIXED: Level 3 - Now a 2-story building but keeping all pigs including boss
 function buildThreeStory(x: number) {
   const baseY = STRUCTURE_BASE_Y;
   
@@ -1062,18 +1124,17 @@ let rightWall: Matter.Body;
 let slingAnchor = { x: 170, y: 0 };
 
 // ============================================
-// FIX 4: SMALLER SLINGSHOT FOR MORE PULL
+// FIX 4: SMALLER SLINGSHOT
 // ============================================
-// FIXED: PERFECT WORLD BUILDING
 function buildWorld() {
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
   BIRD_RADIUS = 25;
   
-  // FIXED: Smaller slingshot, further from edge for more pull distance
-  slingAnchor.x = Math.max(120, Math.floor(WORLD_W * 0.12)); // Changed from 0.15 to 0.12
-  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 90; // Changed from -110 to -90 (shorter slingshot)
+  // SMALLER slingshot, more room to pull
+  slingAnchor.x = Math.max(100, Math.floor(WORLD_W * 0.10)); // Changed from 0.15 to 0.10
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 80; // Changed from -110 to -80
 
   activeParticles.forEach(particle => {
     try { World.remove(world, particle); } catch (e) {}
@@ -1314,8 +1375,9 @@ canvas.addEventListener('pointermove', (ev) => {
 });
 
 // ============================================
-// FIX 1: ACCURATE SLINGSHOT AIMING
+// CRITICAL FIX 1: TRAJECTORY AND LAUNCH ACCURACY
 // ============================================
+// REPLACE the entire pointerup event listener:
 canvas.addEventListener('pointerup', (ev) => {
   if (!isDragging || gameState !== 'playing') return;
   
@@ -1333,17 +1395,13 @@ canvas.addEventListener('pointerup', (ev) => {
     current.launched = true;
     current.launchTime = Date.now();
     
-    // FIXED: More accurate launch power
-    const launchPower = 0.20; // Reduced from 0.22 for better accuracy
+    // FIXED: Match Matter.js physics exactly
+    const launchPower = 0.018; // MUCH LOWER for accurate physics
     const velX = -dragX * launchPower;
     const velY = -dragY * launchPower;
     
     Body.setStatic(current.body, false);
-    
-    // FIXED: Apply velocity correctly
     Body.setVelocity(current.body, { x: velX, y: velY });
-    
-    // Remove speed cap for better accuracy
     
     console.log('LAUNCHED! Velocity:', velX.toFixed(2), velY.toFixed(2));
     
@@ -1678,8 +1736,9 @@ function renderFrame() {
   }
 
   // ============================================
-  // FIX 5: ACCURATE TRAJECTORY LINE
+  // CRITICAL FIX 1: TRAJECTORY AND LAUNCH ACCURACY
   // ============================================
+  // REPLACE the trajectory rendering in renderFrame():
   if (isDragging) {
     const current = birds[currentBirdIndex];
     if (current) {
@@ -1688,34 +1747,43 @@ function renderFrame() {
       const dragDist = Math.hypot(dragX, dragY);
 
       if (dragDist > 15) {
-        const launchPower = 0.20; // MUST match the launch power in pointerup
+        // MUST match pointerup exactly
+        const launchPower = 0.018;
         const velX = -dragX * launchPower;
         const velY = -dragY * launchPower;
 
-        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.8)';
         ctx.setLineDash([5, 5]);
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 3;
         ctx.beginPath();
         ctx.moveTo(current.body.position.x, current.body.position.y);
 
-        // FIXED: More accurate trajectory calculation
-        let lastX = current.body.position.x;
-        let lastY = current.body.position.y;
+        // FIXED: Use Matter.js timestep for accurate trajectory
+        const timeScale = engine.timing.timeScale;
+        const gravity = world.gravity.y;
+        const frictionAir = 0.005; // Match bird's frictionAir
         
-        for (let t = 0; t < 120; t += 3) {
-          const x = current.body.position.x + velX * t;
-          const y = current.body.position.y + velY * t + 0.5 * world.gravity.y * t * t;
+        let x = current.body.position.x;
+        let y = current.body.position.y;
+        let vx = velX;
+        let vy = velY;
+        
+        // Simulate physics step by step like Matter.js does
+        for (let i = 0; i < 200; i++) {
+          // Apply air friction
+          vx *= (1 - frictionAir);
+          vy *= (1 - frictionAir);
           
-          // Draw line segment
+          // Apply gravity
+          vy += gravity * timeScale;
+          
+          // Update position
+          x += vx;
+          y += vy;
+          
           ctx.lineTo(x, y);
           
-          lastX = x;
-          lastY = y;
-          
-          // Stop if trajectory goes below ground
           if (y > WORLD_H - GROUND_HEIGHT) break;
-          
-          // Stop if trajectory goes off screen
           if (x > WORLD_W + 100 || x < -100) break;
         }
         
@@ -1758,22 +1826,30 @@ function showMenu() {
 }
 
 // ============================================
-// FIX 2 & 3: STOP AUDIO ON NEW GAME
+// FIX 3: STOP SOUNDS WHEN STARTING NEW GAME/LEVEL
 // ============================================
+// REPLACE showGame function:
 function showGame() {
   gameState = 'playing';
   
-  // FIXED: Stop all sounds when starting new game
+  // FORCE STOP all victory/defeat sounds
   isPlayingVictoryOrDefeat = false;
   
   if (victorySound) {
-    victorySound.pause();
-    victorySound.currentTime = 0;
+    try {
+      victorySound.pause();
+      victorySound.currentTime = 0;
+      victorySound.src = ''; // Force release
+    } catch (e) {}
     victorySound = null;
   }
+  
   if (defeatSound) {
-    defeatSound.pause();
-    defeatSound.currentTime = 0;
+    try {
+      defeatSound.pause();
+      defeatSound.currentTime = 0;
+      defeatSound.src = ''; // Force release
+    } catch (e) {}
     defeatSound = null;
   }
   
@@ -1849,25 +1925,20 @@ function handleFullscreenChange() {
 }
 
 // ============================================
-// BONUS FIX: Enable audio on first user interaction (iOS)
+// CRITICAL: UNLOCK AUDIO ON EVERY USER INTERACTION
 // ============================================
+// REPLACE initializeEventListeners:
 function initializeEventListeners() {
-  // Enable audio on first interaction (iOS fix)
-  let audioUnlocked = false;
+  // Unlock audio on EVERY interaction
   const unlockAudio = () => {
-    if (!audioUnlocked) {
-      const silentAudio = new Audio();
-      silentAudio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
-      silentAudio.play().then(() => {
-        console.log('Audio unlocked for iOS');
-        audioUnlocked = true;
-      }).catch(e => console.log('Audio unlock failed:', e));
-    }
+    initAudioContext();
   };
   
-  document.addEventListener('touchstart', unlockAudio, { once: true });
-  document.addEventListener('click', unlockAudio, { once: true });
-
+  // Add to ALL possible user interactions
+  document.addEventListener('touchstart', unlockAudio);
+  document.addEventListener('touchend', unlockAudio);
+  document.addEventListener('click', unlockAudio);
+  
   const playBtn = document.getElementById('playBtn');
   const nextLevelBtn = document.getElementById('nextLevelBtn');
   const menuFromCompleteBtn = document.getElementById('menuFromCompleteBtn');
@@ -1882,7 +1953,7 @@ function initializeEventListeners() {
 
   if (playBtn) {
     playBtn.addEventListener('click', () => {
-      unlockAudio(); // Unlock audio on play
+      initAudioContext(); // Force unlock
       currentLevel = 1;
       globalScore = 0;
       showGame();
@@ -1891,6 +1962,7 @@ function initializeEventListeners() {
 
   if (nextLevelBtn) {
     nextLevelBtn.addEventListener('click', () => {
+      initAudioContext(); // Force unlock
       console.log(`Next level clicked. Current level: ${currentLevel}`);
       if (currentLevel < 4) {
         currentLevel++;
@@ -1912,6 +1984,7 @@ function initializeEventListeners() {
 
   if (retryBtn) {
     retryBtn.addEventListener('click', () => {
+      initAudioContext(); // Force unlock
       showGame();
     });
   }
@@ -1934,6 +2007,7 @@ function initializeEventListeners() {
 
   if (playAgainBtn) {
     playAgainBtn.addEventListener('click', () => {
+      initAudioContext(); // Force unlock
       currentLevel = 1;
       globalScore = 0;
       showGame();
@@ -1961,8 +2035,8 @@ function checkOrientation() {
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  slingAnchor.x = Math.max(120, Math.floor(WORLD_W * 0.12)); // Changed
-  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 90; // Changed
+  slingAnchor.x = Math.max(100, Math.floor(WORLD_W * 0.10)); // Changed
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 80; // Changed
   
   if (gameState === 'playing') {
     resizeCanvas();
@@ -1975,8 +2049,8 @@ window.addEventListener('resize', () => {
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  slingAnchor.x = Math.max(120, Math.floor(WORLD_W * 0.12)); // Changed
-  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 90; // Changed
+  slingAnchor.x = Math.max(100, Math.floor(WORLD_W * 0.10)); // Changed
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 80; // Changed
 });
 
 window.addEventListener('orientationchange', () => {
