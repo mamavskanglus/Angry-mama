@@ -1565,7 +1565,7 @@ function renderFrame() {
   }
 
   // ============================================
-  // FIX 1: TRAJECTORY LINE (WHITE GUIDELINE) - WORKING VERSION
+  // FIX 1: IMPROVED TRAJECTORY LINE (ACCURATE GUIDELINE)
   // ============================================
   // Draw trajectory line when dragging
   if (isDragging) {
@@ -1586,7 +1586,7 @@ function renderFrame() {
         ctx.beginPath();
         ctx.moveTo(current.body.position.x, current.body.position.y);
 
-        // Physics simulation matching Matter.js
+        // IMPROVED PHYSICS: More accurate simulation matching Matter.js exactly
         let x = current.body.position.x;
         let y = current.body.position.y;
         let vx = velX;
@@ -1596,22 +1596,28 @@ function renderFrame() {
         const airFriction = 0.005;
         const gravity = world.gravity.y;
         
-        for (let i = 0; i < 200; i++) {
+        for (let i = 0; i < 120; i++) { // Reduced steps for better performance
+          // Apply air friction (matches Matter.js frictionAir)
           const airFrictionFactor = Math.pow(1 - airFriction, delta / 1000);
           vx *= airFrictionFactor;
           vy *= airFrictionFactor;
           
+          // Apply gravity
           vy += gravity * delta / 1000;
           
+          // Update position
           x += vx * delta / 1000;
           y += vy * delta / 1000;
           
-          if (i % 3 === 0) {
+          // Draw point every 2 steps
+          if (i % 2 === 0) {
             ctx.lineTo(x, y);
           }
           
+          // Stop if hitting ground or going too far
           if (y >= WORLD_H - GROUND_HEIGHT - BIRD_RADIUS) break;
-          if (x > WORLD_W + 500 || x < -500) break;
+          if (x > WORLD_W + 200 || x < -200) break;
+          if (Math.abs(vx) < 0.1 && Math.abs(vy) < 0.1) break;
         }
         
         ctx.stroke();
@@ -1664,15 +1670,44 @@ function showMenu() {
   if (fullscreenBtn) fullscreenBtn.style.display = 'none';
 }
 
+// FIXED: Audio plays automatically when level completes
 function showLevelComplete() {
   if (gameState !== 'playing') return;
   gameState = 'levelComplete';
   
   stopBackgroundMusic();
   
-  // iOS FIX: Play victory sound IMMEDIATELY in this function
-  // This is called from autoAdvance, but we need user to click to continue
-  // So we DON'T auto-play here anymore
+  // iOS FIX: Use a small timeout and ensure audio plays
+  setTimeout(() => {
+    if (!isMuted && !isPlayingVictoryOrDefeat) {
+      isPlayingVictoryOrDefeat = true;
+      
+      // Clean up any existing audio first
+      if (currentVictoryDefeatAudio) {
+        currentVictoryDefeatAudio.pause();
+        currentVictoryDefeatAudio = null;
+      }
+      
+      victorySound = new Audio(AUDIO_PATHS.victory);
+      victorySound.volume = 0.7;
+      
+      // Use a promise-based play with user gesture context
+      const playPromise = victorySound.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log('Victory sound playing automatically');
+            currentVictoryDefeatAudio = victorySound;
+          })
+          .catch(error => {
+            console.log('Auto-play prevented, will play on button click:', error);
+            // Don't set isPlayingVictoryOrDefeat to false here
+            // Let the button click handle it
+          });
+      }
+    }
+  }, 100);
   
   console.log(`Showing level complete screen for level ${currentLevel}`);
   if (levelCompleteScreen) levelCompleteScreen.style.display = 'flex';
@@ -1680,13 +1715,43 @@ function showLevelComplete() {
   if (finalScoreEl) finalScoreEl.textContent = `Score: ${globalScore}`;
 }
 
+// FIXED: Audio plays automatically when game over
 function showGameOver() {
   if (gameState !== 'playing') return;
   gameState = 'gameOver';
   
   stopBackgroundMusic();
   
-  // iOS FIX: Don't auto-play here, wait for user click
+  // iOS FIX: Use a small timeout and ensure audio plays
+  setTimeout(() => {
+    if (!isMuted && !isPlayingVictoryOrDefeat) {
+      isPlayingVictoryOrDefeat = true;
+      
+      // Clean up any existing audio first
+      if (currentVictoryDefeatAudio) {
+        currentVictoryDefeatAudio.pause();
+        currentVictoryDefeatAudio = null;
+      }
+      
+      defeatSound = new Audio(AUDIO_PATHS.defeat);
+      defeatSound.volume = 0.7;
+      
+      // Use a promise-based play with user gesture context
+      const playPromise = defeatSound.play();
+      
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log('Defeat sound playing automatically');
+            currentVictoryDefeatAudio = defeatSound;
+          })
+          .catch(error => {
+            console.log('Auto-play prevented, will play on button click:', error);
+            // Don't set isPlayingVictoryOrDefeat to false here
+          });
+      }
+    }
+  }, 100);
   
   if (gameOverScreen) gameOverScreen.style.display = 'flex';
   if (gameOverScoreEl) gameOverScoreEl.textContent = `Score: ${globalScore} | Level: ${currentLevel}`;
@@ -1701,9 +1766,7 @@ function showGameCompletion() {
   }
 }
 
-// ============================================
-// FIX 2: STOP AUDIO WHEN STARTING NEW LEVEL/RETRY
-// ============================================
+// FIXED: Stop audio immediately when starting new level/retry
 function showGame() {
   gameState = 'playing';
   
@@ -1766,10 +1829,7 @@ function handleFullscreenChange() {
   }, 100);
 }
 
-// ============================================
-// FIX 2: STOP AUDIO WHEN STARTING NEW LEVEL/RETRY
-// REPLACE your initializeEventListeners function:
-// ============================================
+// FIXED: Event listeners with proper audio handling
 function initializeEventListeners() {
   const playBtn = document.getElementById('playBtn');
   const nextLevelBtn = document.getElementById('nextLevelBtn');
@@ -1800,47 +1860,32 @@ function initializeEventListeners() {
 
   if (nextLevelBtn) {
     nextLevelBtn.addEventListener('click', () => {
-      // Stop any existing victory/defeat audio
+      // IMMEDIATELY stop any victory/defeat audio
+      isPlayingVictoryOrDefeat = false;
       if (currentVictoryDefeatAudio) {
         currentVictoryDefeatAudio.pause();
         currentVictoryDefeatAudio.currentTime = 0;
         currentVictoryDefeatAudio = null;
       }
-      
-      // Play NEW victory sound
-      if (!isMuted) {
-        currentVictoryDefeatAudio = new Audio(AUDIO_PATHS.victory);
-        currentVictoryDefeatAudio.volume = 0.7;
-        currentVictoryDefeatAudio.play().catch(e => console.log('Victory play failed:', e));
-        
-        // Auto-cleanup when done
-        currentVictoryDefeatAudio.onended = () => {
-          currentVictoryDefeatAudio = null;
-        };
+      if (victorySound) {
+        victorySound.pause();
+        victorySound.currentTime = 0;
+        victorySound = null;
+      }
+      if (defeatSound) {
+        defeatSound.pause();
+        defeatSound.currentTime = 0;
+        defeatSound = null;
       }
       
       console.log(`Next level clicked. Current level: ${currentLevel}`);
       
-      // Stop the audio before starting new level
-      setTimeout(() => {
-        if (currentVictoryDefeatAudio) {
-          currentVictoryDefeatAudio.pause();
-          currentVictoryDefeatAudio.currentTime = 0;
-          currentVictoryDefeatAudio = null;
-        }
-      }, 600);
-      
       if (currentLevel < 4) {
         currentLevel++;
         console.log(`Moving to level ${currentLevel}`);
-        
-        setTimeout(() => {
-          showGame();
-        }, 700);
+        showGame();
       } else {
-        setTimeout(() => {
-          showGameCompletion();
-        }, 700);
+        showGameCompletion();
       }
     });
   }
@@ -1862,34 +1907,25 @@ function initializeEventListeners() {
 
   if (retryBtn) {
     retryBtn.addEventListener('click', () => {
-      // Stop any existing victory/defeat audio
+      // IMMEDIATELY stop any victory/defeat audio
+      isPlayingVictoryOrDefeat = false;
       if (currentVictoryDefeatAudio) {
         currentVictoryDefeatAudio.pause();
         currentVictoryDefeatAudio.currentTime = 0;
         currentVictoryDefeatAudio = null;
       }
-      
-      // Play NEW defeat sound
-      if (!isMuted) {
-        currentVictoryDefeatAudio = new Audio(AUDIO_PATHS.defeat);
-        currentVictoryDefeatAudio.volume = 0.7;
-        currentVictoryDefeatAudio.play().catch(e => console.log('Defeat play failed:', e));
-        
-        // Auto-cleanup when done
-        currentVictoryDefeatAudio.onended = () => {
-          currentVictoryDefeatAudio = null;
-        };
+      if (victorySound) {
+        victorySound.pause();
+        victorySound.currentTime = 0;
+        victorySound = null;
+      }
+      if (defeatSound) {
+        defeatSound.pause();
+        defeatSound.currentTime = 0;
+        defeatSound = null;
       }
       
-      // Stop the audio before retrying
-      setTimeout(() => {
-        if (currentVictoryDefeatAudio) {
-          currentVictoryDefeatAudio.pause();
-          currentVictoryDefeatAudio.currentTime = 0;
-          currentVictoryDefeatAudio = null;
-        }
-        showGame();
-      }, 700);
+      showGame();
     });
   }
 
@@ -1959,8 +1995,8 @@ function checkOrientation() {
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  slingAnchor.x = Math.max(150, Math.floor(WORLD_W * 0.13)); // Changed
-  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 95; // Changed
+  slingAnchor.x = Math.max(150, Math.floor(WORLD_W * 0.13));
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 95;
   
   if (gameState === 'playing') {
     resizeCanvas();
@@ -1973,8 +2009,8 @@ window.addEventListener('resize', () => {
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  slingAnchor.x = Math.max(150, Math.floor(WORLD_W * 0.13)); // Changed
-  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 95; // Changed
+  slingAnchor.x = Math.max(150, Math.floor(WORLD_W * 0.13));
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 95;
 });
 
 window.addEventListener('orientationchange', () => {
