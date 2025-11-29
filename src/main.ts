@@ -19,6 +19,9 @@ let victorySound: HTMLAudioElement | null = null;
 let defeatSound: HTMLAudioElement | null = null;
 let isPlayingVictoryOrDefeat = false;
 
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+let isAudioInitialized = false;
+
 // Audio file paths
 const AUDIO_PATHS = {
   level1: new URL('./assets/audio/level1-bg.mp3', import.meta.url).href,
@@ -108,6 +111,7 @@ function stopBackgroundMusic() {
 }
 
 // Play background music for current level
+// REPLACE your existing playLevelMusic function with this:
 function playLevelMusic() {
   if (isPlayingVictoryOrDefeat) return;
   
@@ -124,8 +128,31 @@ function playLevelMusic() {
   
   if (musicPath && !isMuted) {
     console.log('Playing level music:', musicPath);
-    bgMusic = createAndPlayAudio(musicPath, 0.5, true);
-    currentBgMusic = musicPath;
+    
+    if (isIOS) {
+      // For iOS, we'll start music on first user interaction in the game
+      bgMusic = new Audio(musicPath);
+      bgMusic.volume = 0.5;
+      bgMusic.loop = true;
+      currentBgMusic = musicPath;
+      
+      // iOS: Start music on first tap after level loads
+      const startMusic = () => {
+        if (bgMusic && gameState === 'playing') {
+          bgMusic.play().catch(e => console.log('iOS music start failed:', e));
+        }
+        // Remove event listeners after first tap
+        canvas.removeEventListener('click', startMusic);
+        canvas.removeEventListener('touchstart', startMusic);
+      };
+      
+      canvas.addEventListener('click', startMusic, { once: true });
+      canvas.addEventListener('touchstart', startMusic, { once: true });
+    } else {
+      // Normal playback for Android/Desktop
+      bgMusic = createAndPlayAudio(musicPath, 0.5, true);
+      currentBgMusic = musicPath;
+    }
   }
 }
 
@@ -156,6 +183,61 @@ function updateMuteState() {
     if (victorySound) victorySound.volume = 0.7;
     if (defeatSound) defeatSound.volume = 0.7;
   }
+}
+
+// ADD this as a NEW function (put it near your other audio functions):
+function createIOSAudioEnableButton(soundType: 'victory' | 'defeat') {
+  // Remove any existing button
+  const existingButton = document.getElementById('iosAudioEnable');
+  if (existingButton) {
+    existingButton.remove();
+  }
+  
+  // Create a transparent overlay button that covers the screen
+  const button = document.createElement('button');
+  button.id = 'iosAudioEnable';
+  button.innerHTML = 'Tap to enable sound';
+  button.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    font-size: 24px;
+    border: none;
+    z-index: 10000;
+    cursor: pointer;
+  `;
+  
+  button.onclick = function() {
+    // Play the sound on user interaction
+    if (soundType === 'victory' && victorySound) {
+      victorySound.play().then(() => {
+        console.log('iOS: Victory sound playing after user tap');
+        currentVictoryDefeatAudio = victorySound;
+      }).catch(e => console.log('iOS audio play failed:', e));
+    } else if (soundType === 'defeat' && defeatSound) {
+      defeatSound.play().then(() => {
+        console.log('iOS: Defeat sound playing after user tap');
+        currentVictoryDefeatAudio = defeatSound;
+      }).catch(e => console.log('iOS audio play failed:', e));
+    }
+    
+    // Remove the button
+    button.remove();
+  };
+  
+  document.body.appendChild(button);
+  
+  // Auto-remove the button after 5 seconds if not clicked
+  setTimeout(() => {
+    if (document.getElementById('iosAudioEnable')) {
+      button.remove();
+      console.log('iOS audio enable button auto-removed');
+    }
+  }, 5000);
 }
 
 // FIXED: PERFECT CANVAS RESIZING
@@ -1677,37 +1759,32 @@ function showLevelComplete() {
   
   stopBackgroundMusic();
   
-  // iOS FIX: Use a small timeout and ensure audio plays
-  setTimeout(() => {
-    if (!isMuted && !isPlayingVictoryOrDefeat) {
-      isPlayingVictoryOrDefeat = true;
-      
-      // Clean up any existing audio first
-      if (currentVictoryDefeatAudio) {
-        currentVictoryDefeatAudio.pause();
-        currentVictoryDefeatAudio = null;
-      }
-      
-      victorySound = new Audio(AUDIO_PATHS.victory);
-      victorySound.volume = 0.7;
-      
-      // Use a promise-based play with user gesture context
-      const playPromise = victorySound.play();
-      
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            console.log('Victory sound playing automatically');
-            currentVictoryDefeatAudio = victorySound;
-          })
-          .catch(error => {
-            console.log('Auto-play prevented, will play on button click:', error);
-            // Don't set isPlayingVictoryOrDefeat to false here
-            // Let the button click handle it
-          });
-      }
+  // iOS FIX: Special handling for iOS autoplay restrictions
+  if (!isMuted && !isPlayingVictoryOrDefeat) {
+    isPlayingVictoryOrDefeat = true;
+    
+    // Clean up any existing audio first
+    if (currentVictoryDefeatAudio) {
+      currentVictoryDefeatAudio.pause();
+      currentVictoryDefeatAudio = null;
     }
-  }, 100);
+    
+    victorySound = new Audio(AUDIO_PATHS.victory);
+    victorySound.volume = 0.7;
+    
+    if (isIOS) {
+      // iOS SPECIAL: Create a hidden button that user can "click" to enable audio
+      createIOSAudioEnableButton('victory');
+    } else {
+      // Normal playback for Android/Desktop
+      victorySound.play().then(() => {
+        console.log('Victory sound playing automatically');
+        currentVictoryDefeatAudio = victorySound;
+      }).catch(error => {
+        console.log('Auto-play failed, will play on button click:', error);
+      });
+    }
+  }
   
   console.log(`Showing level complete screen for level ${currentLevel}`);
   if (levelCompleteScreen) levelCompleteScreen.style.display = 'flex';
@@ -1716,42 +1793,39 @@ function showLevelComplete() {
 }
 
 // FIXED: Audio plays automatically when game over
+// REPLACE your existing showGameOver function with this:
 function showGameOver() {
   if (gameState !== 'playing') return;
   gameState = 'gameOver';
   
   stopBackgroundMusic();
   
-  // iOS FIX: Use a small timeout and ensure audio plays
-  setTimeout(() => {
-    if (!isMuted && !isPlayingVictoryOrDefeat) {
-      isPlayingVictoryOrDefeat = true;
-      
-      // Clean up any existing audio first
-      if (currentVictoryDefeatAudio) {
-        currentVictoryDefeatAudio.pause();
-        currentVictoryDefeatAudio = null;
-      }
-      
-      defeatSound = new Audio(AUDIO_PATHS.defeat);
-      defeatSound.volume = 0.7;
-      
-      // Use a promise-based play with user gesture context
-      const playPromise = defeatSound.play();
-      
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => {
-            console.log('Defeat sound playing automatically');
-            currentVictoryDefeatAudio = defeatSound;
-          })
-          .catch(error => {
-            console.log('Auto-play prevented, will play on button click:', error);
-            // Don't set isPlayingVictoryOrDefeat to false here
-          });
-      }
+  // iOS FIX: Special handling for iOS autoplay restrictions
+  if (!isMuted && !isPlayingVictoryOrDefeat) {
+    isPlayingVictoryOrDefeat = true;
+    
+    // Clean up any existing audio first
+    if (currentVictoryDefeatAudio) {
+      currentVictoryDefeatAudio.pause();
+      currentVictoryDefeatAudio = null;
     }
-  }, 100);
+    
+    defeatSound = new Audio(AUDIO_PATHS.defeat);
+    defeatSound.volume = 0.7;
+    
+    if (isIOS) {
+      // iOS SPECIAL: Create a hidden button that user can "click" to enable audio
+      createIOSAudioEnableButton('defeat');
+    } else {
+      // Normal playback for Android/Desktop
+      defeatSound.play().then(() => {
+        console.log('Defeat sound playing automatically');
+        currentVictoryDefeatAudio = defeatSound;
+      }).catch(error => {
+        console.log('Auto-play failed, will play on button click:', error);
+      });
+    }
+  }
   
   if (gameOverScreen) gameOverScreen.style.display = 'flex';
   if (gameOverScoreEl) gameOverScoreEl.textContent = `Score: ${globalScore} | Level: ${currentLevel}`;
@@ -1839,12 +1913,30 @@ function initializeEventListeners() {
   const menuFromCompletionBtn = document.getElementById('menuFromCompletionBtn');
   const playAgainBtn = document.getElementById('playAgainBtn');
 
+
+    const preloadAudio = () => {
+    if (isIOS && !isAudioInitialized) {
+      console.log('iOS: Pre-loading audio files on first user interaction');
+      // This helps iOS recognize that audio is allowed
+      const silentAudio = new Audio();
+      silentAudio.src = 'data:audio/wav;base64,UklGRnoAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoAAAC';
+      silentAudio.play().then(() => {
+        console.log('iOS audio pre-load successful');
+        silentAudio.pause();
+      }).catch(e => console.log('iOS audio pre-load failed:', e));
+      
+      isAudioInitialized = true;
+    }
+  };
+
   if (fullscreenBtn) {
     fullscreenBtn.addEventListener('click', toggleFullscreen);
   }
 
   if (playBtn) {
     playBtn.addEventListener('click', () => {
+
+      preloadAudio();
       // Stop any victory/defeat audio
       if (currentVictoryDefeatAudio) {
         currentVictoryDefeatAudio.pause();
