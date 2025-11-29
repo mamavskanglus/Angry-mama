@@ -3,65 +3,9 @@ import * as Matter from 'matter-js';
 const { Engine, World, Bodies, Body, Runner, Events, Constraint, Composite } = Matter;
 
 // ============================================
-// ALTERNATIVE iOS AUDIO FIX: Web Audio API
+// GLOBAL AUDIO TRACKING
 // ============================================
-let audioContext: AudioContext | null = null;
-let audioBuffers: { [key: string]: AudioBuffer } = {};
-
-async function initWebAudio() {
-  if (audioContext) return;
-  
-  try {
-    const AudioContextClass = (window as any).AudioContext || (window as any).webkitAudioContext;
-    audioContext = new AudioContextClass();
-    
-    // Resume context (required on iOS)
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume();
-    }
-    
-    console.log('✅ Web Audio API initialized');
-  } catch (e) {
-    console.error('Web Audio API failed:', e);
-  }
-}
-
-async function loadAudioBuffer(url: string, key: string) {
-  if (!audioContext || audioBuffers[key]) return;
-  
-  try {
-    const response = await fetch(url);
-    const arrayBuffer = await response.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-    audioBuffers[key] = audioBuffer;
-    console.log(`✅ Loaded ${key}`);
-  } catch (e) {
-    console.error(`Failed to load ${key}:`, e);
-  }
-}
-
-function playAudioBuffer(key: string, volume: number = 0.7) {
-  if (!audioContext || !audioBuffers[key]) {
-    console.error(`Audio buffer ${key} not ready`);
-    return;
-  }
-  
-  try {
-    const source = audioContext.createBufferSource();
-    source.buffer = audioBuffers[key];
-    
-    const gainNode = audioContext.createGain();
-    gainNode.gain.value = volume;
-    
-    source.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    source.start(0);
-    console.log(`✅ Playing ${key}`);
-  } catch (e) {
-    console.error(`Failed to play ${key}:`, e);
-  }
-}
+let currentVictoryDefeatAudio: HTMLAudioElement | null = null;
 
 let gameState: 'menu' | 'playing' | 'levelComplete' | 'gameOver' = 'menu';
 let currentLevel = 1;
@@ -127,6 +71,7 @@ let imagesLoaded = false;
 function initializeAudio() {
   victorySound = null;
   defeatSound = null;
+  currentVictoryDefeatAudio = null;
 }
 
 // Create and play audio with better error handling
@@ -191,6 +136,10 @@ function updateMuteState() {
   
   if (isMuted) {
     stopBackgroundMusic();
+    if (currentVictoryDefeatAudio) {
+      currentVictoryDefeatAudio.pause();
+      currentVictoryDefeatAudio.volume = 0;
+    }
     if (victorySound) {
       victorySound.pause();
       victorySound.volume = 0;
@@ -203,6 +152,7 @@ function updateMuteState() {
     if (gameState === 'playing' && !isPlayingVictoryOrDefeat) {
       playLevelMusic();
     }
+    if (currentVictoryDefeatAudio) currentVictoryDefeatAudio.volume = 0.7;
     if (victorySound) victorySound.volume = 0.7;
     if (defeatSound) defeatSound.volume = 0.7;
   }
@@ -1615,10 +1565,9 @@ function renderFrame() {
   }
 
   // ============================================
-  // TRAJECTORY FIX: The problem is delta time (dt)
-  // Matter.js uses 16.666ms timesteps (60fps)
-  // We need to match this EXACTLY
+  // FIX 1: TRAJECTORY LINE (WHITE GUIDELINE) - WORKING VERSION
   // ============================================
+  // Draw trajectory line when dragging
   if (isDragging) {
     const current = birds[currentBirdIndex];
     if (current) {
@@ -1627,7 +1576,7 @@ function renderFrame() {
       const dragDist = Math.hypot(dragX, dragY);
 
       if (dragDist > 15) {
-        const launchPower = 0.16; // MUST MATCH pointerup
+        const launchPower = 0.16; // MUST match your pointerup launch power
         const velX = -dragX * launchPower;
         const velY = -dragY * launchPower;
 
@@ -1637,50 +1586,38 @@ function renderFrame() {
         ctx.beginPath();
         ctx.moveTo(current.body.position.x, current.body.position.y);
 
-        // CRITICAL: Match Matter.js physics EXACTLY
+        // Physics simulation matching Matter.js
         let x = current.body.position.x;
         let y = current.body.position.y;
         let vx = velX;
         let vy = velY;
         
-        // Matter.js default timestep
-        const delta = 1000 / 60; // 16.666ms per frame
-        const correction = 1; // Time correction
+        const delta = 1000 / 60; // Matter.js timestep
+        const airFriction = 0.005;
+        const gravity = world.gravity.y;
         
-        // Bird's physics properties
-        const airFriction = 0.005; // From bird creation
-        const gravity = world.gravity.y; // 1
-        
-        // Simulate 200 physics steps (about 3.3 seconds)
         for (let i = 0; i < 200; i++) {
-          // Apply air resistance (exponential decay)
-          const airFrictionFactor = Math.pow(1 - airFriction, delta * correction);
+          const airFrictionFactor = Math.pow(1 - airFriction, delta / 1000);
           vx *= airFrictionFactor;
           vy *= airFrictionFactor;
           
-          // Apply gravity
-          vy += gravity * delta / 1000 * correction;
+          vy += gravity * delta / 1000;
           
-          // Update position using velocity
-          x += vx * delta / 1000 * correction;
-          y += vy * delta / 1000 * correction;
+          x += vx * delta / 1000;
+          y += vy * delta / 1000;
           
-          // Draw every 3rd point for smoother line
           if (i % 3 === 0) {
             ctx.lineTo(x, y);
           }
           
-          // Stop at ground
           if (y >= WORLD_H - GROUND_HEIGHT - BIRD_RADIUS) break;
-          
-          // Stop if way off-screen
           if (x > WORLD_W + 500 || x < -500) break;
         }
         
         ctx.stroke();
         ctx.setLineDash([]);
         
-        // Draw a dot at the end
+        // End dot
         ctx.fillStyle = 'rgba(255,255,255,0.8)';
         ctx.beginPath();
         ctx.arc(x, y, 6, 0, Math.PI * 2);
@@ -1702,6 +1639,12 @@ function showMenu() {
   
   isPlayingVictoryOrDefeat = false;
   
+  if (currentVictoryDefeatAudio) {
+    currentVictoryDefeatAudio.pause();
+    currentVictoryDefeatAudio.currentTime = 0;
+    currentVictoryDefeatAudio = null;
+  }
+  
   if (victorySound) {
     victorySound.pause();
     victorySound = null;
@@ -1721,13 +1664,6 @@ function showMenu() {
   if (fullscreenBtn) fullscreenBtn.style.display = 'none';
 }
 
-// ============================================
-// CRITICAL FIX: iOS AUDIO SYSTEM
-// iOS blocks audio unless played in DIRECT response to user action
-// We need to call play() INSIDE the click event, not after setTimeout
-// ============================================
-
-// REPLACE showLevelComplete function:
 function showLevelComplete() {
   if (gameState !== 'playing') return;
   gameState = 'levelComplete';
@@ -1744,7 +1680,6 @@ function showLevelComplete() {
   if (finalScoreEl) finalScoreEl.textContent = `Score: ${globalScore}`;
 }
 
-// REPLACE showGameOver function:
 function showGameOver() {
   if (gameState !== 'playing') return;
   gameState = 'gameOver';
@@ -1766,11 +1701,20 @@ function showGameCompletion() {
   }
 }
 
+// ============================================
+// FIX 2: STOP AUDIO WHEN STARTING NEW LEVEL/RETRY
+// ============================================
 function showGame() {
   gameState = 'playing';
   
-  // Stop all sounds
+  // FORCE STOP all victory/defeat sounds
   isPlayingVictoryOrDefeat = false;
+  
+  if (currentVictoryDefeatAudio) {
+    currentVictoryDefeatAudio.pause();
+    currentVictoryDefeatAudio.currentTime = 0;
+    currentVictoryDefeatAudio = null;
+  }
   
   if (victorySound) {
     victorySound.pause();
@@ -1823,8 +1767,8 @@ function handleFullscreenChange() {
 }
 
 // ============================================
-// CRITICAL FIX: iOS AUDIO SYSTEM
-// COMPLETELY REPLACE initializeEventListeners to play audio on BUTTON CLICK:
+// FIX 2: STOP AUDIO WHEN STARTING NEW LEVEL/RETRY
+// REPLACE your initializeEventListeners function:
 // ============================================
 function initializeEventListeners() {
   const playBtn = document.getElementById('playBtn');
@@ -1840,13 +1784,13 @@ function initializeEventListeners() {
   }
 
   if (playBtn) {
-    playBtn.addEventListener('click', async () => {
-      // Initialize Web Audio on first click
-      await initWebAudio();
-      
-      // Preload victory/defeat sounds
-      await loadAudioBuffer(AUDIO_PATHS.victory, 'victory');
-      await loadAudioBuffer(AUDIO_PATHS.defeat, 'defeat');
+    playBtn.addEventListener('click', () => {
+      // Stop any victory/defeat audio
+      if (currentVictoryDefeatAudio) {
+        currentVictoryDefeatAudio.pause();
+        currentVictoryDefeatAudio.currentTime = 0;
+        currentVictoryDefeatAudio = null;
+      }
       
       currentLevel = 1;
       globalScore = 0;
@@ -1856,27 +1800,60 @@ function initializeEventListeners() {
 
   if (nextLevelBtn) {
     nextLevelBtn.addEventListener('click', () => {
-      // Play victory sound using Web Audio API
+      // Stop any existing victory/defeat audio
+      if (currentVictoryDefeatAudio) {
+        currentVictoryDefeatAudio.pause();
+        currentVictoryDefeatAudio.currentTime = 0;
+        currentVictoryDefeatAudio = null;
+      }
+      
+      // Play NEW victory sound
       if (!isMuted) {
-        playAudioBuffer('victory', 0.7);
+        currentVictoryDefeatAudio = new Audio(AUDIO_PATHS.victory);
+        currentVictoryDefeatAudio.volume = 0.7;
+        currentVictoryDefeatAudio.play().catch(e => console.log('Victory play failed:', e));
+        
+        // Auto-cleanup when done
+        currentVictoryDefeatAudio.onended = () => {
+          currentVictoryDefeatAudio = null;
+        };
       }
       
       console.log(`Next level clicked. Current level: ${currentLevel}`);
+      
+      // Stop the audio before starting new level
+      setTimeout(() => {
+        if (currentVictoryDefeatAudio) {
+          currentVictoryDefeatAudio.pause();
+          currentVictoryDefeatAudio.currentTime = 0;
+          currentVictoryDefeatAudio = null;
+        }
+      }, 600);
+      
       if (currentLevel < 4) {
         currentLevel++;
         console.log(`Moving to level ${currentLevel}`);
         
         setTimeout(() => {
           showGame();
-        }, 800);
+        }, 700);
       } else {
-        showGameCompletion();
+        setTimeout(() => {
+          showGameCompletion();
+        }, 700);
       }
     });
   }
 
   if (menuFromCompleteBtn) {
     menuFromCompleteBtn.addEventListener('click', () => {
+      // Stop any victory/defeat audio
+      if (currentVictoryDefeatAudio) {
+        currentVictoryDefeatAudio.pause();
+        currentVictoryDefeatAudio.currentTime = 0;
+        currentVictoryDefeatAudio = null;
+      }
+      
       currentLevel = 1;
       globalScore = 0;
       showMenu();
@@ -1885,19 +1862,46 @@ function initializeEventListeners() {
 
   if (retryBtn) {
     retryBtn.addEventListener('click', () => {
-      // Play defeat sound using Web Audio API
-      if (!isMuted) {
-        playAudioBuffer('defeat', 0.7);
+      // Stop any existing victory/defeat audio
+      if (currentVictoryDefeatAudio) {
+        currentVictoryDefeatAudio.pause();
+        currentVictoryDefeatAudio.currentTime = 0;
+        currentVictoryDefeatAudio = null;
       }
       
+      // Play NEW defeat sound
+      if (!isMuted) {
+        currentVictoryDefeatAudio = new Audio(AUDIO_PATHS.defeat);
+        currentVictoryDefeatAudio.volume = 0.7;
+        currentVictoryDefeatAudio.play().catch(e => console.log('Defeat play failed:', e));
+        
+        // Auto-cleanup when done
+        currentVictoryDefeatAudio.onended = () => {
+          currentVictoryDefeatAudio = null;
+        };
+      }
+      
+      // Stop the audio before retrying
       setTimeout(() => {
+        if (currentVictoryDefeatAudio) {
+          currentVictoryDefeatAudio.pause();
+          currentVictoryDefeatAudio.currentTime = 0;
+          currentVictoryDefeatAudio = null;
+        }
         showGame();
-      }, 800);
+      }, 700);
     });
   }
 
   if (menuFromGameOverBtn) {
     menuFromGameOverBtn.addEventListener('click', () => {
+      // Stop any victory/defeat audio
+      if (currentVictoryDefeatAudio) {
+        currentVictoryDefeatAudio.pause();
+        currentVictoryDefeatAudio.currentTime = 0;
+        currentVictoryDefeatAudio = null;
+      }
+      
       currentLevel = 1;
       globalScore = 0;
       showMenu();
@@ -1906,6 +1910,13 @@ function initializeEventListeners() {
 
   if (menuFromCompletionBtn) {
     menuFromCompletionBtn.addEventListener('click', () => {
+      // Stop any victory/defeat audio
+      if (currentVictoryDefeatAudio) {
+        currentVictoryDefeatAudio.pause();
+        currentVictoryDefeatAudio.currentTime = 0;
+        currentVictoryDefeatAudio = null;
+      }
+      
       currentLevel = 1;
       globalScore = 0;
       showMenu();
@@ -1914,6 +1925,13 @@ function initializeEventListeners() {
 
   if (playAgainBtn) {
     playAgainBtn.addEventListener('click', () => {
+      // Stop any victory/defeat audio
+      if (currentVictoryDefeatAudio) {
+        currentVictoryDefeatAudio.pause();
+        currentVictoryDefeatAudio.currentTime = 0;
+        currentVictoryDefeatAudio = null;
+      }
+      
       currentLevel = 1;
       globalScore = 0;
       showGame();
