@@ -123,6 +123,9 @@ function playLevelMusic() {
   }
 }
 
+// ============================================
+// FIX 2 & 3: iOS AUDIO FIX & STOP AUDIO ON NEW GAME
+// ============================================
 // Play victory sound
 function playVictorySound() {
   if (isMuted) return;
@@ -131,18 +134,41 @@ function playVictorySound() {
   
   stopBackgroundMusic();
   
+  // Stop any existing victory/defeat sounds
+  if (victorySound) {
+    victorySound.pause();
+    victorySound.currentTime = 0;
+    victorySound = null;
+  }
+  if (defeatSound) {
+    defeatSound.pause();
+    defeatSound.currentTime = 0;
+    defeatSound = null;
+  }
+  
   isPlayingVictoryOrDefeat = true;
   
-  // Create new audio instance each time for better iOS compatibility
+  // iOS FIX: Create audio with proper user interaction context
   victorySound = new Audio(AUDIO_PATHS.victory);
   victorySound.volume = 0.7;
   
-  // iOS FIX: Use a small timeout to ensure the audio context is ready
-  setTimeout(() => {
-    victorySound!.play().catch(error => {
+  // iOS FIX: Play immediately within user interaction
+  const playPromise = victorySound.play();
+  
+  if (playPromise !== undefined) {
+    playPromise.then(() => {
+      console.log('Victory sound playing successfully');
+    }).catch(error => {
       console.log('Victory sound play failed:', error);
+      // Fallback: try playing with user interaction
+      document.addEventListener('touchstart', function playOnTouch() {
+        if (victorySound) {
+          victorySound.play().catch(e => console.log('Retry failed:', e));
+        }
+        document.removeEventListener('touchstart', playOnTouch);
+      }, { once: true });
     });
-  }, 100);
+  }
   
   victorySound.addEventListener('ended', () => {
     console.log('Victory sound ended');
@@ -165,18 +191,41 @@ function playDefeatSound() {
   
   stopBackgroundMusic();
   
+  // Stop any existing victory/defeat sounds
+  if (victorySound) {
+    victorySound.pause();
+    victorySound.currentTime = 0;
+    victorySound = null;
+  }
+  if (defeatSound) {
+    defeatSound.pause();
+    defeatSound.currentTime = 0;
+    defeatSound = null;
+  }
+  
   isPlayingVictoryOrDefeat = true;
   
-  // Create new audio instance each time for better iOS compatibility
+  // iOS FIX: Create audio with proper user interaction context
   defeatSound = new Audio(AUDIO_PATHS.defeat);
   defeatSound.volume = 0.7;
   
-  // iOS FIX: Use a small timeout to ensure the audio context is ready
-  setTimeout(() => {
-    defeatSound!.play().catch(error => {
+  // iOS FIX: Play immediately within user interaction
+  const playPromise = defeatSound.play();
+  
+  if (playPromise !== undefined) {
+    playPromise.then(() => {
+      console.log('Defeat sound playing successfully');
+    }).catch(error => {
       console.log('Defeat sound play failed:', error);
+      // Fallback: try playing with user interaction
+      document.addEventListener('touchstart', function playOnTouch() {
+        if (defeatSound) {
+          defeatSound.play().catch(e => console.log('Retry failed:', e));
+        }
+        document.removeEventListener('touchstart', playOnTouch);
+      }, { once: true });
     });
-  }, 100);
+  }
   
   defeatSound.addEventListener('ended', () => {
     console.log('Defeat sound ended');
@@ -1012,14 +1061,19 @@ let leftWall: Matter.Body;
 let rightWall: Matter.Body;
 let slingAnchor = { x: 170, y: 0 };
 
+// ============================================
+// FIX 4: SMALLER SLINGSHOT FOR MORE PULL
+// ============================================
 // FIXED: PERFECT WORLD BUILDING
 function buildWorld() {
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
   BIRD_RADIUS = 25;
-  slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
-  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
+  
+  // FIXED: Smaller slingshot, further from edge for more pull distance
+  slingAnchor.x = Math.max(120, Math.floor(WORLD_W * 0.12)); // Changed from 0.15 to 0.12
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 90; // Changed from -110 to -90 (shorter slingshot)
 
   activeParticles.forEach(particle => {
     try { World.remove(world, particle); } catch (e) {}
@@ -1259,6 +1313,9 @@ canvas.addEventListener('pointermove', (ev) => {
   ev.preventDefault();
 });
 
+// ============================================
+// FIX 1: ACCURATE SLINGSHOT AIMING
+// ============================================
 canvas.addEventListener('pointerup', (ev) => {
   if (!isDragging || gameState !== 'playing') return;
   
@@ -1276,20 +1333,19 @@ canvas.addEventListener('pointerup', (ev) => {
     current.launched = true;
     current.launchTime = Date.now();
     
-    const launchPower = 0.22;
+    // FIXED: More accurate launch power
+    const launchPower = 0.20; // Reduced from 0.22 for better accuracy
     const velX = -dragX * launchPower;
     const velY = -dragY * launchPower;
     
     Body.setStatic(current.body, false);
     
+    // FIXED: Apply velocity correctly
     Body.setVelocity(current.body, { x: velX, y: velY });
     
-    const speed = Body.getSpeed(current.body);
-    if (speed > 75) {
-      Body.setSpeed(current.body, 75);
-    }
+    // Remove speed cap for better accuracy
     
-    console.log('LAUNCHED! Velocity:', velX.toFixed(2), velY.toFixed(2), 'Speed:', speed.toFixed(2));
+    console.log('LAUNCHED! Velocity:', velX.toFixed(2), velY.toFixed(2));
     
   } else {
     Body.setPosition(current.body, { x: slingAnchor.x, y: slingAnchor.y });
@@ -1621,6 +1677,9 @@ function renderFrame() {
     ctx.restore();
   }
 
+  // ============================================
+  // FIX 5: ACCURATE TRAJECTORY LINE
+  // ============================================
   if (isDragging) {
     const current = birds[currentBirdIndex];
     if (current) {
@@ -1629,7 +1688,7 @@ function renderFrame() {
       const dragDist = Math.hypot(dragX, dragY);
 
       if (dragDist > 15) {
-        const launchPower = 0.22;
+        const launchPower = 0.20; // MUST match the launch power in pointerup
         const velX = -dragX * launchPower;
         const velY = -dragY * launchPower;
 
@@ -1639,12 +1698,27 @@ function renderFrame() {
         ctx.beginPath();
         ctx.moveTo(current.body.position.x, current.body.position.y);
 
-        for (let t = 0; t < 100; t += 2) {
+        // FIXED: More accurate trajectory calculation
+        let lastX = current.body.position.x;
+        let lastY = current.body.position.y;
+        
+        for (let t = 0; t < 120; t += 3) {
           const x = current.body.position.x + velX * t;
           const y = current.body.position.y + velY * t + 0.5 * world.gravity.y * t * t;
+          
+          // Draw line segment
           ctx.lineTo(x, y);
+          
+          lastX = x;
+          lastY = y;
+          
+          // Stop if trajectory goes below ground
           if (y > WORLD_H - GROUND_HEIGHT) break;
+          
+          // Stop if trajectory goes off screen
+          if (x > WORLD_W + 100 || x < -100) break;
         }
+        
         ctx.stroke();
         ctx.setLineDash([]);
       }
@@ -1683,10 +1757,25 @@ function showMenu() {
   if (fullscreenBtn) fullscreenBtn.style.display = 'none';
 }
 
+// ============================================
+// FIX 2 & 3: STOP AUDIO ON NEW GAME
+// ============================================
 function showGame() {
   gameState = 'playing';
   
+  // FIXED: Stop all sounds when starting new game
   isPlayingVictoryOrDefeat = false;
+  
+  if (victorySound) {
+    victorySound.pause();
+    victorySound.currentTime = 0;
+    victorySound = null;
+  }
+  if (defeatSound) {
+    defeatSound.pause();
+    defeatSound.currentTime = 0;
+    defeatSound = null;
+  }
   
   if (menuScreen) menuScreen.style.display = 'none';
   if (gameUI) gameUI.style.display = 'block';
@@ -1759,7 +1848,26 @@ function handleFullscreenChange() {
   }, 100);
 }
 
+// ============================================
+// BONUS FIX: Enable audio on first user interaction (iOS)
+// ============================================
 function initializeEventListeners() {
+  // Enable audio on first interaction (iOS fix)
+  let audioUnlocked = false;
+  const unlockAudio = () => {
+    if (!audioUnlocked) {
+      const silentAudio = new Audio();
+      silentAudio.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+      silentAudio.play().then(() => {
+        console.log('Audio unlocked for iOS');
+        audioUnlocked = true;
+      }).catch(e => console.log('Audio unlock failed:', e));
+    }
+  };
+  
+  document.addEventListener('touchstart', unlockAudio, { once: true });
+  document.addEventListener('click', unlockAudio, { once: true });
+
   const playBtn = document.getElementById('playBtn');
   const nextLevelBtn = document.getElementById('nextLevelBtn');
   const menuFromCompleteBtn = document.getElementById('menuFromCompleteBtn');
@@ -1768,13 +1876,13 @@ function initializeEventListeners() {
   const menuFromCompletionBtn = document.getElementById('menuFromCompletionBtn');
   const playAgainBtn = document.getElementById('playAgainBtn');
 
-  // FIXED: Add fullscreen button event listener
   if (fullscreenBtn) {
     fullscreenBtn.addEventListener('click', toggleFullscreen);
   }
 
   if (playBtn) {
     playBtn.addEventListener('click', () => {
+      unlockAudio(); // Unlock audio on play
       currentLevel = 1;
       globalScore = 0;
       showGame();
@@ -1853,8 +1961,8 @@ function checkOrientation() {
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
-  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
+  slingAnchor.x = Math.max(120, Math.floor(WORLD_W * 0.12)); // Changed
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 90; // Changed
   
   if (gameState === 'playing') {
     resizeCanvas();
@@ -1867,8 +1975,8 @@ window.addEventListener('resize', () => {
   WORLD_W = window.innerWidth;
   WORLD_H = window.innerHeight;
   STRUCTURE_BASE_Y = WORLD_H - GROUND_HEIGHT - 10;
-  slingAnchor.x = Math.max(140, Math.floor(WORLD_W * 0.15));
-  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 110;
+  slingAnchor.x = Math.max(120, Math.floor(WORLD_W * 0.12)); // Changed
+  slingAnchor.y = WORLD_H - GROUND_HEIGHT - 90; // Changed
 });
 
 window.addEventListener('orientationchange', () => {
